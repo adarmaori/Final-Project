@@ -24,6 +24,37 @@ filtered_data_int = np.int16(filtered_data)
 wavfile.write('filtered_400Hz.wav', sample_rate, filtered_data_int)
 print(f"Filtered audio saved to: filtered_400Hz.wav")
 
+# Apply reverb effect to original signal
+def apply_reverb(signal, sample_rate, decay=0.5, delay_ms=50, iterations=6):
+    """Apply a simple reverb using a fixed delay increment and decay."""
+    output = signal.astype(np.float64).copy()
+
+    for i in range(1, iterations + 1):
+        delay_samples = int(delay_ms * i * sample_rate / 1000)
+        if delay_samples >= len(signal):
+            break
+
+        decay_factor = decay ** i
+        delayed = np.zeros_like(output)
+        delayed[delay_samples:] = signal[:-delay_samples] * decay_factor
+
+        output += delayed
+
+    # Normalize to prevent clipping
+    max_val = np.max(np.abs(output))
+    if max_val > 0:
+        output = output / max_val * 32767 * 0.9  # Leave some headroom
+
+    return output
+
+# Apply reverb with default parameters
+reverb_data = apply_reverb(data, sample_rate, decay=0.5, delay_ms=120, iterations=100)
+
+# Save reverb audio to new WAV file
+reverb_data_int = np.int16(reverb_data)
+wavfile.write('reverb_output.wav', sample_rate, reverb_data_int)
+print(f"Reverb audio saved to: reverb_output.wav")
+
 # Compute FFT for original
 fft_result = np.fft.fft(data)
 fft_freq = np.fft.fftfreq(len(data), 1/sample_rate)
@@ -79,9 +110,9 @@ ax4.grid(True)
 # Find and print peak frequency
 peak_idx = np.argmax(fft_magnitude)
 peak_freq = fft_freq[peak_idx]
-print(f"Sample rate: {sample_rate} Hz")
-print(f"Duration: {len(data)/sample_rate:.2f} seconds")
-print(f"Original peak frequency: {peak_freq:.2f} Hz")
+# print(f"Sample rate: {sample_rate} Hz")
+# print(f"Duration: {len(data)/sample_rate:.2f} seconds")
+# print(f"Original peak frequency: {peak_freq:.2f} Hz")
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
