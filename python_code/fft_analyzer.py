@@ -55,64 +55,106 @@ reverb_data_int = np.int16(reverb_data)
 wavfile.write('reverb_output.wav', sample_rate, reverb_data_int)
 print(f"Reverb audio saved to: reverb_output.wav")
 
-# Compute FFT for original
-fft_result = np.fft.fft(data)
-fft_freq = np.fft.fftfreq(len(data), 1/sample_rate)
+# --- Distortion Implementations ---
 
-# Compute FFT for filtered
-fft_result_filtered = np.fft.fft(filtered_data)
-fft_freq_filtered = np.fft.fftfreq(len(filtered_data), 1/sample_rate)
+def apply_hard_clipping(signal, threshold=0.5, gain=10.0):
+    """
+    Apply hard clipping distortion.
+    Caps the amplitude using min() and max() (equivalent to clipping).
+    """
+    # Normalize to float -1.0 to 1.0
+    if np.issubdtype(signal.dtype, np.integer):
+        signal_float = signal / 32768.0
+    else:
+        # Handle float data that might be in integer range (e.g. from averaging)
+        if np.max(np.abs(signal)) > 1.0:
+            signal_float = signal / 32768.0
+        else:
+            signal_float = signal.copy()
 
-# Take only positive frequencies
-positive_freq_idx = fft_freq > 0
-fft_freq = fft_freq[positive_freq_idx]
-fft_magnitude = np.abs(fft_result[positive_freq_idx])
-fft_magnitude_filtered = np.abs(fft_result_filtered[positive_freq_idx])
+    # Apply pre-gain
+    amplified = signal_float * gain
 
-# Create figure with 2x2 subplots
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
+    # Hard clipping using min/max as requested
+    # Clip upper bound
+    clipped = np.minimum(amplified, threshold)
+    # Clip lower bound
+    clipped = np.maximum(clipped, -threshold)
+    
+    # Convert back to int16 range
+    output = clipped * 32767
 
-# Plot original time domain signal
-time = np.arange(len(data)) / sample_rate
-ax1.plot(time, data, alpha=0.7)
-ax1.set_xlabel('Time (s)')
-ax1.set_ylabel('Amplitude')
-ax1.set_title('Original Signal (Time Domain)')
-ax1.grid(True)
+    return output
 
-# Plot filtered time domain signal
-ax2.plot(time, filtered_data, alpha=0.7, color='orange')
-ax2.set_xlabel('Time (s)')
-ax2.set_ylabel('Amplitude')
-ax2.set_title('Filtered Signal - 400Hz LPF (Time Domain)')
-ax2.grid(True)
+def apply_tanh_distortion(signal, threshold=0.5, gain=10.0):
+    """
+    Apply soft clipping distortion using tanh function.
+    """
+    # Normalize to float -1.0 to 1.0
+    if np.issubdtype(signal.dtype, np.integer):
+        signal_float = signal / 32768.0
+    else:
+        # Handle float data that might be in integer range
+        if np.max(np.abs(signal)) > 1.0:
+            signal_float = signal / 32768.0
+        else:
+            signal_float = signal.copy()
 
-# Plot original frequency domain (FFT)
-ax3.plot(fft_freq, fft_magnitude, alpha=0.7)
-ax3.set_xlabel('Frequency (Hz)')
-ax3.set_ylabel('Magnitude')
-ax3.set_title('Original Signal (Frequency Domain)')
-ax3.set_xlim(0, 2000)
-ax3.axvline(x=400, color='r', linestyle='--', alpha=0.5, label='400Hz cutoff')
-ax3.legend()
-ax3.grid(True)
+    # Apply pre-gain
+    amplified = signal_float * gain
 
-# Plot filtered frequency domain (FFT)
-ax4.plot(fft_freq, fft_magnitude_filtered, alpha=0.7, color='orange')
-ax4.set_xlabel('Frequency (Hz)')
-ax4.set_ylabel('Magnitude')
-ax4.set_title('Filtered Signal - 400Hz LPF (Frequency Domain)')
-ax4.set_xlim(0, 2000)
-ax4.axvline(x=400, color='r', linestyle='--', alpha=0.5, label='400Hz cutoff')
-ax4.legend()
-ax4.grid(True)
+    # Apply tanh distortion
+    # Soft clip to threshold
+    distorted = threshold * np.tanh(amplified)
 
-# Find and print peak frequency
-peak_idx = np.argmax(fft_magnitude)
-peak_freq = fft_freq[peak_idx]
-# print(f"Sample rate: {sample_rate} Hz")
-# print(f"Duration: {len(data)/sample_rate:.2f} seconds")
-# print(f"Original peak frequency: {peak_freq:.2f} Hz")
+    # Convert back to int16 range
+    output = distorted * 32767
 
-# plt.tight_layout()
-# plt.show()
+    return output
+
+# Apply Hard Clipping
+hard_clipped_data = apply_hard_clipping(data, threshold=0.6, gain=60.0)
+hard_clipped_int = np.int16(hard_clipped_data)
+wavfile.write('hard_clipping_output.wav', sample_rate, hard_clipped_int)
+print(f"Hard clipped audio saved to: hard_clipping_output.wav")
+
+# Apply Tanh Distortion
+tanh_distorted_data = apply_tanh_distortion(data, threshold=0.1, gain=1000.0)
+tanh_distorted_int = np.int16(tanh_distorted_data)
+wavfile.write('tanh_distortion_output.wav', sample_rate, tanh_distorted_int)
+print(f"Tanh distorted audio saved to: tanh_distortion_output.wav")
+
+# Plotting Distortion
+plt.figure(figsize=(14, 8))
+
+# Find a loud part of the signal to visualize clipping
+# We'll look for the maximum amplitude in the original signal
+zoom_center = np.argmax(np.abs(data))
+zoom_window = 500  # Number of samples to show
+start_idx = max(0, zoom_center - zoom_window // 2)
+end_idx = min(len(data), zoom_center + zoom_window // 2)
+
+time_zoom = np.arange(start_idx, end_idx) / sample_rate
+
+# Plot Hard Clipping
+plt.subplot(2, 1, 1)
+plt.plot(time_zoom, data[start_idx:end_idx], label='Original', alpha=0.5)
+plt.plot(time_zoom, hard_clipped_data[start_idx:end_idx], label='Hard Clipping', linestyle='--')
+plt.title('Hard Clipping (Zoomed)')
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+plt.legend()
+plt.grid(True)
+
+# Plot Tanh Distortion
+plt.subplot(2, 1, 2)
+plt.plot(time_zoom, data[start_idx:end_idx], label='Original', alpha=0.5)
+plt.plot(time_zoom, tanh_distorted_data[start_idx:end_idx], label='Tanh Distortion', linestyle='--')
+plt.title('Tanh Distortion (Zoomed)')
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()
