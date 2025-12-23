@@ -131,3 +131,45 @@ In your final report, you present two demos:
 2. **Local Demo (Your Faster-Whisper/Vosk):** "Look, our local model responds in 50ms. It's not perfect English, but it's fast enough to trigger a command."
 
 This perfectly justifies why your project exists.
+
+### 6. Implementation Details
+
+#### Created Files
+
+*   **`cloud_client.py`**:
+    *   **The Core Platform:** This module encapsulates the connection to the ElevenLabs Scribe v2 Realtime API. It handles the WebSocket handshake, audio encoding (base64), and asynchronous communication.
+
+*   **`realtime_stt.py`**:
+    *   **The Application:** This is the "platform" script. It connects to the cloud, streams audio from your microphone, and prints the transcription to the screen in real-time. It uses a clean UI with partial updates (`\r`) and final confirmations.
+
+*   **`test_bench.py`**:
+    *   **The Test Bench:** This script runs the same client but adds instrumentation to measure:
+        *   **Latency:** Time from sending an audio chunk to receiving the text (in ms).
+        *   **Jitter:** The standard deviation of the latency (stability of the connection).
+        *   **Average Latency:** A moving average of the last 10 samples.
+    *   It outputs a table of metrics in real-time so you can see the "Latency Funnel" effect described in your plan.
+
+*   **`requirements.txt`**:
+    *   Lists the required libraries: `websockets` and `pyaudio`.
+
+#### How to Run
+
+1.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **Set your API Key:**
+    You can set it as an environment variable or edit the files directly.
+
+3.  **Run the Platform (Demo):**
+    ```bash
+    python realtime_stt.py
+    ```
+
+4.  **Run the Test Bench (Measurement):**
+    ```bash
+    python test_bench.py
+    ```
+
+This setup allows you to demonstrate the "Cloud Demo" part of your final report, showing the inherent latency of cloud-based solutions compared to your local FPGA/offline implementation.
