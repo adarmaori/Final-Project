@@ -1,6 +1,8 @@
+# PC plan 
+
 This project plan outlines a comparative study between a Neural Network (NN) and deterministic Digital Signal Processing (DSP) algorithms for audio effects. The focus is on **Distortion**, a perfect candidate because it is computationally cheap in DSP (simple math) but complex to model accurately with NNs (non-linearities).
 
-### **Phase 1: The "Simple Start" (Non-Real-Time)**
+## **Phase 1: The "Simple Start" (Non-Real-Time)**
 
 Before tackling real-time streams, build a foundation that processes `.wav` files. This isolates the algorithmic performance from audio I/O latency.
 
@@ -10,8 +12,6 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
 2. Run Deterministic function.
 3. Run NN Inference.
 4. Compare output waveforms and processing time.
-
-
 
 ---
 
@@ -32,11 +32,10 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
 Implement these in pure Python (using NumPy) and optionally optimized with **Numba** to create a fair "fast Python" comparison.
 
 
-* **Soft Clipping (Tube-like):**
-
-$$f(x) = \tanh(k \cdot x)$$
-
- (where k is gain)
+* **Tube Saturator (Improved):**
+  A multi-stage chain for warm, analog-style distortion:
+  $$f(x) = \text{LPF}(\tanh(k \cdot x + \text{bias}))$$
+    *   *Stages:* Input Gain $\rightarrow$ Asymmetry (DC Bias) $\rightarrow$ Soft Clip $\rightarrow$ Low-Pass Filter (4kHz) to remove digital fizz.
 
 * **Bitcrushing:**
 Reduces signal resolution (e.g., quantize float signal to 8-bit integers and back).
