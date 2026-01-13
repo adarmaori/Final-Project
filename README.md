@@ -29,10 +29,12 @@ uv sync
 **Step A: Prepare Data**
 1.  Place your raw/clean audio files (wav) in `python_code/data/datasets/inputs/`.
 2.  Run the generator to create target "distorted" files:
-    ```bash
-    uv run generate_targets.py
-    ```
-    (This saves processed files to `python_code/data/datasets/targets/`)
+
+```bash
+uv run generate_targets.py
+```
+
+(This saves processed files to `python_code/data/datasets/targets/`)
 
 **Step B: Train the Model**
 Train the TCN to mimic the DSP effect:
@@ -43,16 +45,24 @@ The best model will be saved to `python_code/models/checkpoints/tcn_final.pt`.
 
 **Step C: Run Inference**
 Apply the trained model to a new audio file:
+
 ```bash
 uv run inference.py --input_file "path/to/my_riff.wav"
 ```
+
 Output will be saved to `python_code/data/processed/`.
 
 **Step D: Benchmark**
 Compare the speed and output of the DSP vs. the Trained NN:
+
 ```bash
 uv run tests/phase1_benchmark.py
 ```
+
+*TODO: add file size comparisons (several runs)*
+*TODO: add statistics (several runs)*
+*TODO: add different models (different size, optimized) to compare against eachother.*
+*TODO: add real-time inference implementation*
 
 ## Comparisons
 

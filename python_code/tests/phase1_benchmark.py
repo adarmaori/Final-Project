@@ -178,7 +178,7 @@ if __name__ == "__main__":
     
     if not os.path.exists(test_file):
         # Generate synthetic if file doesn't exist
-        print(f"Test file not found at {test_file}, generating synthetic signal...")
+        print(f"Test file not found at {test_file}, generating synthetic sin wave signal...")
         sr = 44100
         t = np.linspace(0, 5, 5*sr)
         y = 0.5 * np.sin(2 * np.pi * 440 * t)
