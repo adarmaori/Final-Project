@@ -10,8 +10,8 @@ import sys
 # Add project root to path to allow importing from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.dsp.distortion import tanh_distortion, tube_saturator
-from src.nn.architecture import SimpleTCN
+from src.dsp.distortion import tube_saturator
+from src.engine.wrapper import NNWrapper
 
 def run_phase1(input_file, output_dir=None):
     if output_dir is None:
@@ -34,8 +34,8 @@ def run_phase1(input_file, output_dir=None):
     # 2. Run Deterministic DSP (Improved Tube Saturator)
     print("\nRunning DSP (Tube Saturator)...")
     start_time = time.perf_counter()
-    # Drive=10 gives nice crunch, Asymmetry=0.3 adds warmth, Tone=4000 removes fizz
-    y_dsp = tube_saturator(y, drive=20.0, asymmetry=0.3, tone=4000, fs=sr)
+    # Updated parameters from training generation (Heavy Distortion)
+    y_dsp = tube_saturator(y, drive=70.0, asymmetry=0.4, tone=5000, fs=sr)
     dsp_time = time.perf_counter() - start_time
     print(f"DSP Processing Time: {dsp_time:.6f}s")
     
@@ -44,26 +44,24 @@ def run_phase1(input_file, output_dir=None):
     sf.write(dsp_out_path, y_dsp, sr)
     print(f"Saved DSP output to {dsp_out_path}")
 
-    # 3. Run NN Inference (Dummy Model)
-    print("\nRunning NN Inference (Simple TCN)...")
-    # Prepare input for PyTorch (Batch, Channels, Length)
-    # TCN expects (Batch, Channels, Length)
-    y_tensor = torch.from_numpy(y).float().unsqueeze(0).unsqueeze(0) 
+    # 3. Run NN Inference (Trained Model)
+    print("\nRunning NN Inference (Trained TCN)...")
     
-    model = SimpleTCN()
-    model.eval() # Set to evaluation mode
+    # Locate model checkpoint
+    model_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints', 'tcn_final.pt')
+    wrapper = NNWrapper(model_path=model_path)
     
     start_time = time.perf_counter()
-    with torch.no_grad():
-        y_nn_tensor = model(y_tensor)
+    y_nn = wrapper.process(y)
     nn_time = time.perf_counter() - start_time
     
-    y_nn = y_nn_tensor.squeeze().numpy()
     print(f"NN Processing Time: {nn_time:.6f}s")
     
     # Save NN output
     nn_out_path = os.path.join(output_dir, "phase1_nn_output.wav")
-    # Normalize NN output if needed (random weights can produce huge values)
+    # Output from wrapper is already numpy array
+    
+    # Normalize NN output if needed (safety check)
     if np.max(np.abs(y_nn)) > 1.0:
         y_nn = y_nn / np.max(np.abs(y_nn)) * 0.9
         
@@ -89,7 +87,7 @@ def run_phase1(input_file, output_dir=None):
     plt.grid(True)
     
     plt.subplot(3, 1, 3)
-    plt.title("NN Output (Untrained)")
+    plt.title("NN Output (Trained)")
     plt.plot(y_nn[:1000])
     plt.grid(True)
     
@@ -102,7 +100,7 @@ if __name__ == "__main__":
     # Use a file from the workspace if available
     # Look in project root
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    test_file_name = "funk-soul-guitar-clean-4_90bpm_G.wav"
+    test_file_name = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
     test_file = os.path.join(project_root, test_file_name)
     
     if not os.path.exists(test_file):
