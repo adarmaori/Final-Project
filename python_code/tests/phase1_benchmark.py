@@ -51,6 +51,10 @@ def run_phase1(input_file, output_dir=None):
     model_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints', 'tcn_final.pt')
     wrapper = NNWrapper(model_path=model_path)
     
+    # Get model stats
+    param_count = sum(p.numel() for p in wrapper.model.parameters())
+    print(f"Model Parameters: {param_count:,}")
+
     start_time = time.perf_counter()
     y_nn = wrapper.process(y)
     nn_time = time.perf_counter() - start_time
@@ -59,21 +63,90 @@ def run_phase1(input_file, output_dir=None):
     
     # Save NN output
     nn_out_path = os.path.join(output_dir, "phase1_nn_output.wav")
-    # Output from wrapper is already numpy array
     
     # Normalize NN output if needed (safety check)
     if np.max(np.abs(y_nn)) > 1.0:
-        y_nn = y_nn / np.max(np.abs(y_nn)) * 0.9
+        y_nn = y_nn / np.max(np.abs(y_nn)) * 0.99
         
     sf.write(nn_out_path, y_nn, sr)
     print(f"Saved NN output to {nn_out_path}")
 
-    # 4. Compare
-    print("\n--- Comparison ---")
-    print(f"DSP Time: {dsp_time:.6f}s")
-    print(f"NN Time:  {nn_time:.6f}s")
-    print(f"Ratio (NN/DSP): {nn_time/dsp_time:.2f}x slower")
+    # 4. Analysis & Reporting
+    print("\n--- Generating Report ---")
     
+    # Metrics
+    duration_s = len(y) / sr
+    
+    # RTF (Real Time Factor) = Processing Time / Audio Duration
+    # RTF < 1.0 means faster than real-time
+    dsp_rtf = dsp_time / duration_s
+    nn_rtf = nn_time / duration_s
+    
+    # Speedup
+    ratio_nn_dsp = nn_time / dsp_time
+    
+    # Accuracy (MSE) - how close is NN to DSP?
+    # Ensure lengths match (NN might change length slightly if padding is off, but wrapper handles it usually)
+    min_len = min(len(y_dsp), len(y_nn))
+    mse = np.mean((y_dsp[:min_len] - y_nn[:min_len])**2)
+    max_error = np.max(np.abs(y_dsp[:min_len] - y_nn[:min_len]))
+    
+    report_lines = [
+        "Phase 1 Benchmark Report",
+        "========================",
+        f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Input File: {os.path.basename(input_file)}",
+        f"Duration: {duration_s:.2f}s ({len(y)} samples @ {sr}Hz)",
+        "",
+        "Model Info",
+        "----------",
+        f"Architecture: Causal TCN",
+        f"Parameter Count: {param_count:,}",
+        f"Model Path: {os.path.basename(model_path)}",
+        "",
+        "Performance Metrics",
+        "-------------------",
+        f"DSP Time: {dsp_time:.6f}s",
+        f"NN Time:  {nn_time:.6f}s",
+        f"Ratio:    NN is {ratio_nn_dsp:.2f}x slower than DSP",
+        "",
+        "Real-Time Factor (RTF)",
+        "----------------------",
+        "(RTF < 1.0 means faster than real-time)",
+        f"DSP RTF: {dsp_rtf:.6f}",
+        f"NN RTF:  {nn_rtf:.6f}",
+        f"NN Max Throughput: {len(y)/nn_time:,.0f} samples/sec",
+        "",
+        "Accuracy (NN validity)",
+        "----------------------",
+        f"MSE (Mean Squared Error): {mse:.2e}",
+        f"Max Absolute Error:       {max_error:.4f}",
+        "",
+        "Notes",
+        "-----",
+        "- DSP is the 'Ground Truth' target.",
+        "- Low MSE indicates the NN has successfully learned the distortion function.",
+        "- If NN RTF > 1.0, the model is too heavy for real-time use on this CPU."
+    ]
+    
+    report_text = "\n".join(report_lines)
+    print(report_text)
+    
+    # Save timestamped report
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    report_filename = f"phase1_report_{timestamp}.txt"
+    report_path = os.path.join(output_dir, report_filename)
+    
+    with open(report_path, "w") as f:
+        f.write(report_text)
+    print(f"\nSaved detailed report to {report_path}")
+
+    # Save latest copy (overwrite)
+    latest_path = os.path.join(output_dir, "phase1_report_latest.txt")
+    with open(latest_path, "w") as f:
+        f.write(report_text)
+    print(f"Saved latest report copy to {latest_path}")
+
     # 5. Plotting
     plt.figure(figsize=(10, 6))
     plt.subplot(3, 1, 1)

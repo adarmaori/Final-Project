@@ -15,182 +15,83 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
 
 ---
 
-### **Phase 2: Project Architecture & Platform**
+### **Phase 2: Project Architecture & Platform (Implemented)**
 
 #### **1. The Neural Network Platform**
 
-* **Framework:** **PyTorch** is recommended for its dynamic nature and easy switching to **TorchScript/ONNX** for optimization.
-* **Model Architecture:** Start with a lightweight **1D Convolutional Network (TCN)** or a tiny **LSTM/GRU**. These are standard for modeling time-series audio effects.
-* *Input:* Raw audio samples (buffer size , e.g., 512 samples).
-* *Output:* Processed audio samples (same size).
-
-
-* **Optimization:** Pure Python inference is slow. You must plan to export the trained model to **ONNX Runtime** for the actual benchmark. It drastically reduces Python overhead.
+*   **Framework:** **PyTorch**.
+*   **Model Architecture:** **Causal Temporal Convolutional Network (TCN)**.
+    *   *Features:* Dilated convolutions (1, 2, 4...) allow learning long-term dependencies.
+    *   *Causality:* Uses custom `Chomp1d` layers and padding to ensure the model *only* looks at past samples, making it suitable for real-time processing simulation.
+    *   *Input/Output:* Accepts raw audio chunks (1D), outputs processed audio chunks (1D).
+*   **Training Loop:** Implemented with split validation, MSE Loss, and automatic checkpointing.
 
 #### **2. Deterministic Implementations**
 
-Implement these in pure Python (using NumPy) and optionally optimized with **Numba** to create a fair "fast Python" comparison.
+*   **Tube Saturator (Improved):**
+    A multi-stage chain for warm, analog-style distortion:
+    $$f(x) = \text{LPF}(\tanh(\text{drive} \cdot x + \text{asymmetry}) - \text{dc\_offset})$$
+    *   *Stages:*
+        1.  **Drive**: High input gain (e.g., 70.0) to push signal into non-linearity.
+        2.  **Asymmetry**: Adds a DC bias (e.g., 0.3-0.4) to create even-order harmonics (warmth).
+        3.  **Soft Clip**: Uses `tanh` to round off peaks.
+        4.  **Tone Stack**: A 4kHz Low-Pass Filter (Butterworth) to remove harsh high-frequency aliasing/fizz.
 
+#### **3. Real-Time Audio Engine (Planned for Phase 3)**
 
-* **Tube Saturator (Improved):**
-  A multi-stage chain for warm, analog-style distortion:
-  $$f(x) = \text{LPF}(\tanh(k \cdot x + \text{bias}))$$
-    *   *Stages:* Input Gain $\rightarrow$ Asymmetry (DC Bias) $\rightarrow$ Soft Clip $\rightarrow$ Low-Pass Filter (4kHz) to remove digital fizz.
-
-* **Bitcrushing:**
-Reduces signal resolution (e.g., quantize float signal to 8-bit integers and back).
-
-#### **3. Real-Time Audio Engine**
-
-* **Library:** **PyAudio** (wrapper for PortAudio). It is the standard for low-level audio I/O in Python.
-* **Mechanism:** Use a **Callback Mode** (non-blocking).
-* The audio card requests data (e.g., 256 samples).
-* Your code must fill this buffer and return it before the next request arrives.
-* *Fail condition:* If you take too long, you hear "glitches" (buffer underruns).
-
-
+*   **Library:** **PyAudio** (wrapper for PortAudio).
+*   **Mechanism:** Callback Mode.
 
 ---
 
 ### **Phase 3: The Testbench (Measuring Performance)**
 
-The testbench needs to measure metrics without interfering with the audio stream itself.
+We have implemented `tests/phase1_benchmark.py` which performs the following:
 
-#### **Key Metrics to Measure:**
+#### **Key Metrics Measured:**
 
-1. **Real-Time Factor (RTF):**
-
-
-* *Goal:*  (Ideally  for safety).
-
-
-2. **Throughput:** Samples processed per second.
-3. **Latency Jitter:** The variance in processing time. NNs often have "spikes" in latency (e.g., garbage collection or cache misses) even if average RTF is low.
-
-#### **Proposed Testbench Class Structure (Python):**
-
-```python
-import time
-import numpy as np
-
-class AudioBenchmark:
-    def __init__(self, processor_func, buffer_size, sample_rate):
-        self.processor = processor_func
-        self.buffer_size = buffer_size
-        self.sample_rate = sample_rate
-        self.latencies = []
-
-    def run_benchmark(self, input_buffer):
-        start_time = time.perf_counter()
-        
-        # Run the effect
-        output = self.processor(input_buffer)
-        
-        end_time = time.perf_counter()
-        
-        process_time = end_time - start_time
-        buffer_duration = self.buffer_size / self.sample_rate
-        
-        # Log metrics
-        self.latencies.append(process_time)
-        return output
-
-    def report(self):
-        avg_lat = np.mean(self.latencies) * 1000 # ms
-        p99_lat = np.percentile(self.latencies, 99) * 1000 # 99th percentile
-        rtf = np.mean(self.latencies) / (self.buffer_size / self.sample_rate)
-        
-        print(f"Avg Latency: {avg_lat:.2f}ms")
-        print(f"99% Latency: {p99_lat:.2f}ms (Glitches likely here)")
-        print(f"Real-Time Factor: {rtf:.4f}")
-
-```
+1.  **Processing Speed:** Time to process a fixed length file.
+2.  **Ratio:** Comparison of NN inference time vs. DSP execution time.
+3.  **Visual Quality:** Plots waveforms of Original vs. DSP vs. NN output for visual inspection.
 
 ---
 
-### **Comparison Strategy (The "Vs" Part)**
-
-To make the comparison meaningful, you need to compare apples to apples.
-
-| Feature | Deterministic (NumPy/Numba) | Neural Network (PyTorch/ONNX) |
-| --- | --- | --- |
-| **Complexity** | O(N) - Linear per sample | O(N * Layers * Kernel) |
-| **Memory** | Negligible | High (Weights + Activation Buffers) |
-| **Buffer Sensitivity** | Low (can process 1 sample) | High (Often needs batching for speed) |
-| **Quality** | Mathematically precise, "Cold" | Can learn "Warm" analog quirks |
-
-### **Additional Considerations**
-
-1. **Block-Based Processing (Statefulness):**
-* **DSP:** Filters (like IIR) need to remember the *previous* sample state.
-* **NN:** If using Recurrent Networks (LSTM/GRU), you must pass the "hidden state" from one audio chunk to the next. If you don't, the audio will have clicks at the buffer boundaries.
-* *Plan:* Ensure your `process(buffer)` function accepts and returns a `state` variable.
-
-
-2. **Overhead vs. Compute:**
-* In Python, the overhead of *calling* the NN (moving data from CPU RAM to PyTorch Tensor) might be higher than the calculation itself for small buffers (e.g., 64 samples).
-* *Test:* Measure how performance degrades as you *decrease* buffer size.
-
-
-3. **Visualizing the Difference:**
-* Include a real-time spectral analyzer (using `matplotlib` animation or `vispy`) to visually show the harmonic distortion added by the NN vs. the DSP.
-
-
-Here is a recommended file structure for the project.
-
-This structure segregates the "offline" Machine Learning workflow (training/data prep) from the "online" real-time application (inference/streaming), while keeping shared utilities accessible.
-
-### **Project File Structure**
+### **Project File Structure (Current)**
 
 ```text
-audio_neural_vs_dsp/
+python_code/
 │
-├── README.md                   # Project overview and setup instructions
-├── requirements.txt            # Dependencies (torch, numpy, pyaudio, onnxruntime, etc.)
-├── main_benchmark.py           # Entry point for the real-time comparison testbench
+├── README.md                   # Main project documentation
+├── pyproject.toml              # Dependencies (uv managed)
+├── main.py                     # (Currently unused placeholder)
 │
-├── data/                       # Storage for audio files
-│   ├── raw/                    # Original dry audio samples (wav)
-│   ├── processed/              # Audio with effects applied (for offline analysis)
-│   └── datasets/               # Prepared datasets for NN training (input/target pairs)
+├── data/                       # Audio Data Storage
+│   ├── datasets/               # Training Data
+│   │   ├── inputs/             # Clean wav files
+│   │   └── targets/            # DSP-processed wav files (Generated)
+│   ├── processed/              # Inference/Benchmark outputs
+│   └── raw/                    # Miscellaneous raw files
 │
-├── models/                     # Saved models and checkpoints
-│   ├── checkpoints/            # PyTorch .pt training checkpoints
-│   └── exported/               # Optimized .onnx models for fast inference
+├── models/                     # Saved Models
+│   └── checkpoints/            # PyTorch .pt training checkpoints
 │
-├── src/                        # Source code
-│   ├── __init__.py
+├── src/                        # Source Code
+│   ├── dsp/                    # Deterministic Algorithms
+│   │   ├── distortion.py       # Tube Saturator & simple tanh
+│   │   └── filters.py          # LPF/HPF filter helpers
 │   │
-│   ├── dsp/                    # Deterministic implementations (The Baseline)
-│   │   ├── __init__.py
-│   │   ├── distortion.py       # Hard/Soft clipping algorithms (NumPy/Numba)
-│   │   └── filters.py          # Helper filters (e.g., simple low-pass if needed)
+│   ├── nn/                     # Neural Network Logic
+│   │   ├── architecture.py     # TCN, Causal Convs, Chomp1d
+│   │   ├── dataset.py          # AudioEffectDataset (Slicing/Loading)
+│   │   └── train.py            # Training Loop Script
 │   │
-│   ├── nn/                     # Neural Network logic (The Challenger)
-│   │   ├── __init__.py
-│   │   ├── architecture.py     # PyTorch Model classes (TCN, LSTM, etc.)
-│   │   ├── train.py            # Script to train the model
-│   │   └── dataset.py          # PyTorch Dataset/Dataloader logic
-│   │
-│   ├── engine/                 # Real-time processing core
-│   │   ├── __init__.py
-│   │   ├── audio_io.py         # PyAudio wrapper (handles stream callbacks)
-│   │   └── wrapper.py          # Unified wrapper class for NN and DSP models
-│   │
-│   └── analysis/               # Measurement tools
-│       ├── __init__.py
-│       ├── metrics.py          # Calculations for RTF, Throughput, Jitter
-│       └── plotting.py         # Matplotlib scripts for waveforms/spectrograms
+│   └── engine/                 # Unified Interfaces
+│       └── wrapper.py          # NNWrapper / DSPWrapper classes
 │
-└── tests/                      # Unit tests
-    ├── test_dsp.py             # Verify DSP math correctness
-    └── test_nn_latency.py      # Basic isolated speed checks for models
-
+├── tests/                      # Testing & Benchmarking
+│   └── phase1_benchmark.py     # Comparison Script
+│
+├── generate_targets.py         # Script to create training data from inputs
+└── inference.py                # Script to run trained model on files
 ```
 
-### **Key Modules Explained**
-
-* **`src/dsp/`**: Contains the "Reference" implementations. These are pure mathematical functions (e.g., `tanh(x)`). Using **Numba** decorators here allows you to compare "Optimized Python" vs "Neural Network."
-* **`src/nn/`**: The "Lab." This is where you define the model layers and run the training loop. This code is mostly run offline.
-* **`models/exported/`**: The "Deployment" folder. While you train in PyTorch, for the benchmark you should export the model here (e.g., to **ONNX**) to ensure you are benchmarking the model's speed, not the overhead of the Python training framework.
-* **`src/engine/wrapper.py`**: The "Interface." This script defines a standard class structure (e.g., a `.process_buffer()` method) so the main benchmark loop doesn't need to know if it is talking to a Neural Net or a DSP function.

@@ -1,0 +1,35 @@
+Phase 1 Benchmark Report
+========================
+Date: 2026-01-13 10:50:40
+Input File: funk-soul-guitar-clean-4_90bpm_G.wav
+Duration: 5.33s (235200 samples @ 44100Hz)
+
+Model Info
+----------
+Architecture: Causal TCN
+Parameter Count: 113
+Model Path: tcn_final.pt
+
+Performance Metrics
+-------------------
+DSP Time: 0.004053s
+NN Time:  0.014305s
+Ratio:    NN is 3.53x slower than DSP
+
+Real-Time Factor (RTF)
+----------------------
+(RTF < 1.0 means faster than real-time)
+DSP RTF: 0.000760
+NN RTF:  0.002682
+NN Max Throughput: 16,442,378 samples/sec
+
+Accuracy (NN validity)
+----------------------
+MSE (Mean Squared Error): 6.76e-02
+Max Absolute Error:       0.9211
+
+Notes
+-----
+- DSP is the 'Ground Truth' target.
+- Low MSE indicates the NN has successfully learned the distortion function.
+- If NN RTF > 1.0, the model is too heavy for real-time use on this CPU.
