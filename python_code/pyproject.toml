@@ -10,4 +10,5 @@ dependencies = [
     "numpy>=2.3.5",
     "torch>=2.0.0",
     "scipy>=1.10.0",
+    "pandas>=3.0.0",
 ]

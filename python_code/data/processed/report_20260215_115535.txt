@@ -1,0 +1,32 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-02-15 11:55:32
+Input: romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav (53.71s @ 44100Hz)
+Test Configuration: 10 runs/test, Block Size: 512
+
+Loaded Causal TCN (Final): 0.00 MB, 113 params
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | Speed vs DSP
+DSP Match            |    53.71ms | 0.0010   | 0.00e+00   | 1.0x
+DSP RT               |    56.51ms | 0.0011   | 2.47e-16   | 1.05x slower
+Causal TCN (Final)   |   111.34ms | 0.0021   | 2.28e-02   | 2.07x slower
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | Causal TCN (Final)
+1.0        | 0.0020          | 0.0009          | 0.0026          |
+5.0        | 0.0013          | 0.0012          | 0.0098          |
+10.0       | 0.0013          | 0.0011          | 0.0023          |
+30.0       | 0.0011          | 0.0012          | 0.0026          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   0.2963 ms |   0.5500 ms |   2.55% (P99: 0.45ms)
+DSP RT               |   0.0402 ms |   0.0650 ms |   0.35% (P99: 0.06ms)
+Causal TCN (Final)   |   0.1630 ms |   0.6398 ms |   1.40% (P99: 0.33ms)

@@ -1,0 +1,16 @@
+Bela Real-Time Benchmark Report
+Block Size: 16  |  Sample Rate: 44100 Hz
+Budget: 0.363 ms/block
+
+Metric         | All-Pass (y=x)   | NN Model        
+----------------------------------------------------
+Mean (ms)      | 0.0074           | 0.0152          
+Std (ms)       | 0.0031           | 0.0055          
+Median (ms)    | 0.0070           | 0.0144          
+Max (ms)       | 0.1437           | 0.1722          
+P99 (ms)       | 0.0095           | 0.0197          
+Proc. Load (%) | 2.0322           | 4.1837          
+
+Model-only timing (excluding I/O overhead):
+Mean (ms)      | 0.0028           | 0.0105          
+Max (ms)       | 0.1314           | 0.1557          

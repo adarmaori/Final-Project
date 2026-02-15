@@ -20,6 +20,32 @@ class DSPWrapper:
     def process(self, audio_buffer):
         return self.processor(audio_buffer, **self.kwargs)
 
+
+class RealtimeDSPWrapper:
+    """Wraps a *stateful* DSP processor that exposes a ``.process(block)`` method.
+
+    Unlike ``DSPWrapper`` (which calls a pure function), this wrapper holds a
+    processor object whose internal state persists between ``process()`` calls,
+    making it suitable for block-by-block real-time simulation.
+    """
+
+    def __init__(self, processor_instance):
+        """
+        Args:
+            processor_instance: An object with a ``process(audio_block)`` method
+                                (e.g. ``RealtimeTubeSaturator``).
+        """
+        self.processor = processor_instance
+        self.name = "RealtimeDSP"
+
+    def process(self, audio_buffer):
+        return self.processor.process(audio_buffer)
+
+    def reset(self):
+        """Reset internal state between unrelated audio streams."""
+        if hasattr(self.processor, 'reset'):
+            self.processor.reset()
+
 class NNWrapper:
     def __init__(self, model_path=None, model_class=SimpleTCN, device='cpu'):
         """

@@ -10,8 +10,8 @@ import sys
 # Add project root to path to allow importing from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.dsp.distortion import tube_saturator
-from src.engine.wrapper import NNWrapper, DSPWrapper
+from src.dsp.distortion import tube_saturator, RealtimeTubeSaturator
+from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
 def run_benchmark_suite(input_file, output_dir=None):
     if output_dir is None:
@@ -23,7 +23,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     # --- Configuration ---
     N_RUNS = 10  # Number of runs for statistics
     BLOCK_SIZE = 512 # For real-time simulation
-    TEST_DURATIONS = [1.0, 5.0, 10.0] # Seconds to test scalability
+    TEST_DURATIONS = [1.0, 5.0, 10.0, 30.0] # Seconds to test scalability
     
     # Define Models to Benchmark (Add new models here)
     project_models_dir = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints')
@@ -68,11 +68,16 @@ def run_benchmark_suite(input_file, output_dir=None):
     # --- 2. Initialize Models ---
     wrappers = {}
     
-    # 2a. DSP Baseline
+    # 2a. DSP Baseline (offline / batch)
     dsp_wrapper = DSPWrapper(tube_saturator, drive=70.0, asymmetry=0.4, tone=5000, fs=sr)
     wrappers["DSP Match"] = dsp_wrapper
     
-    # 2b. NN Models
+    # 2b. Real-time DSP (stateful, block-by-block)
+    rt_saturator = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=sr)
+    rt_dsp_wrapper = RealtimeDSPWrapper(rt_saturator)
+    wrappers["DSP RT"] = rt_dsp_wrapper
+    
+    # 2c. NN Models
     for cfg in models_config:
         if not cfg['active']:
             report_lines.append(f"Skipping {cfg['name']} (Inactive/Placeholder)")
@@ -111,6 +116,9 @@ def run_benchmark_suite(input_file, output_dir=None):
         # Timing Loop
         times = []
         for i in range(N_RUNS):
+            # Reset stateful wrappers so each run starts from a clean state
+            if hasattr(wrapper, 'reset'):
+                wrapper.reset()
             start = time.perf_counter()
             y_out = wrapper.process(y_full)
             times.append(time.perf_counter() - start)
@@ -120,6 +128,8 @@ def run_benchmark_suite(input_file, output_dir=None):
         rtf = avg_time / (len(y_full)/sr)
         
         # Accuracy Loop (Once)
+        if hasattr(wrapper, 'reset'):
+            wrapper.reset()
         y_out = wrapper.process(y_full)
         if name == "DSP Match":
             mse = 0.0
@@ -128,9 +138,10 @@ def run_benchmark_suite(input_file, output_dir=None):
             L = min(len(y_out), len(y_dsp_ref))
             mse = np.mean((y_out[:L] - y_dsp_ref[:L])**2)
             
-            # Save Output
-            out_name = f"output_{name.replace(' ', '_')}.wav"
-            sf.write(os.path.join(output_dir, out_name), y_out, sr)
+        # Save Output for all models
+        input_stem = os.path.splitext(os.path.basename(input_file))[0]
+        out_name = f"output_{input_stem}_{name.replace(' ', '_')}.wav"
+        sf.write(os.path.join(output_dir, out_name), y_out, sr)
             
         ratio_str = "1.0x"
         if name != "DSP Match":
@@ -152,7 +163,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     
     scalability_results = {name: [] for name in wrappers.keys()}
     
-    header = f"{'Duration':<10} |" + " | ".join([f"{name:<15}" for name in wrappers.keys()])
+    header = f"{'Duration':<10} | " + " | ".join([f"{name:<15}" for name in wrappers.keys()])
     report_lines.append(header)
     
     for dur in TEST_DURATIONS:
@@ -164,6 +175,8 @@ def run_benchmark_suite(input_file, output_dir=None):
         row_str = f"{dur:<10.1f} |"
         
         for name, wrapper in wrappers.items():
+            if hasattr(wrapper, 'reset'):
+                wrapper.reset()
             start = time.perf_counter()
             _ = wrapper.process(y_slice)
             t = time.perf_counter() - start
@@ -191,9 +204,9 @@ def run_benchmark_suite(input_file, output_dir=None):
     report_lines.append(f"Budget per block: {block_duraion_ms:.2f} ms")
 
     for name, wrapper in wrappers.items():
-        if "DSP" in name: 
-            # We skip DSP for complex jitter plot generally, or keep it. Let's keep it.
-            pass
+        # Reset stateful wrappers before the block-jitter experiment
+        if hasattr(wrapper, 'reset'):
+            wrapper.reset()
             
         latencies_ms = []
         for i in range(num_blocks):
@@ -292,3 +305,11 @@ if __name__ == "__main__":
         print(f"Generated synthetic file at {test_file}")
         
     run_benchmark_suite(test_file)
+
+    # --- Second file: longer guitar riff (53 s) ---
+    test_file_2_name = "../raw_sound_files/romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav"
+    test_file_2 = os.path.join(project_root, test_file_2_name)
+    if os.path.exists(test_file_2):
+        run_benchmark_suite(test_file_2)
+    else:
+        print(f"Skipping second benchmark — file not found: {test_file_2}")

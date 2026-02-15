@@ -1,0 +1,30 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-02-15 11:59:31
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
+Test Configuration: 10 runs/test, Block Size: 512
+
+Loaded Causal TCN (Final): 0.00 MB, 113 params
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | Speed vs DSP
+DSP Match            |     5.61ms | 0.0011   | 0.00e+00   | 1.0x
+DSP RT               |     5.00ms | 0.0009   | 2.38e-16   | 0.89x slower
+Causal TCN (Final)   |    10.32ms | 0.0019   | 5.81e-02   | 1.84x slower
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | Causal TCN (Final)
+1.0        | 0.0013          | 0.0008          | 0.0028          |
+5.0        | 0.0011          | 0.0010          | 0.0022          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   0.2447 ms |   0.7936 ms |   2.11% (P99: 0.52ms)
+DSP RT               |   0.0415 ms |   0.1104 ms |   0.36% (P99: 0.08ms)
+Causal TCN (Final)   |   0.1533 ms |   1.7994 ms |   1.32% (P99: 0.31ms)
