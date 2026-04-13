@@ -80,6 +80,7 @@ uv run tests/phase1_benchmark.py
 *   `src/engine/`: Wrappers for unified inference.
 *   `data/`: Storage for datasets and processed audio.
 *   `tests/`: Benchmarking scripts.
+*   `python_code/archive/`: Legacy one-off scripts moved out of active workflow (`main.py`, `fft_analyzer.py`).
 
 ---
 
