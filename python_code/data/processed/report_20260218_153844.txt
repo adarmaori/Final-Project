@@ -1,6 +1,6 @@
 Phase 1 Detailed Benchmark Report
 ==============================
-Date: 2026-02-18 15:43:02
+Date: 2026-02-18 15:38:40
 Input: romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav (53.71s @ 44100Hz)
 Test Configuration: 10 runs/test, Block Size: 512
 
@@ -11,22 +11,22 @@ Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
 Experiment A: Batch Processing Checks
 -------------------------------------
 Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
-DSP Match            |    57.87ms | 0.0011   | 0.00e+00   |   0.00%   | 1.0x
-DSP RT               |    64.83ms | 0.0012   | 2.47e-16   |   0.00%   | 1.12x slower
-Causal TCN (Final)   |   132.93ms | 0.0025   | 2.28e-02   |   5.09%   | 2.30x slower
+DSP Match            |    61.02ms | 0.0011   | 0.00e+00   | 0.0000     | 1.0x
+DSP RT               |    66.86ms | 0.0012   | 2.47e-16   | 0.0000     | 1.10x slower
+Causal TCN (Final)   |   123.87ms | 0.0023   | 2.28e-02   | 0.0509     | 2.03x slower
 
 Experiment B: Scalability (RTF over different durations)
 ------------------------------------------------------
 Duration   | DSP Match       | DSP RT          | Causal TCN (Final)
-1.0        | 0.0017          | 0.0010          | 0.0035          |
-5.0        | 0.0012          | 0.0011          | 0.0106          |
-10.0       | 0.0014          | 0.0014          | 0.0025          |
-30.0       | 0.0013          | 0.0013          | 0.0029          |
+1.0        | 0.0015          | 0.0009          | 0.0022          |
+5.0        | 0.0011          | 0.0012          | 0.0093          |
+10.0       | 0.0014          | 0.0013          | 0.0023          |
+30.0       | 0.0012          | 0.0010          | 0.0027          |
 
 Experiment C: Simulated Real-Time (Block Size: 512)
 -------------------------------------------------------
 Model                | Avg Latency  | Max Latency  | Processing Load (%) 
 Budget per block: 11.61 ms
-DSP Match            |   0.2838 ms |   0.5684 ms |   2.44% (P99: 0.49ms)
-DSP RT               |   0.0340 ms |   0.0764 ms |   0.29% (P99: 0.07ms)
-Causal TCN (Final)   |   0.1952 ms |   1.8058 ms |   1.68% (P99: 1.14ms)
+DSP Match            |   0.2540 ms |   0.6925 ms |   2.19% (P99: 0.47ms)
+DSP RT               |   0.0346 ms |   0.1149 ms |   0.30% (P99: 0.07ms)
+Causal TCN (Final)   |   0.1715 ms |   0.8106 ms |   1.48% (P99: 0.36ms)

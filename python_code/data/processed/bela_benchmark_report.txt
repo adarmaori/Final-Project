@@ -14,3 +14,7 @@ Proc. Load (%) | 2.0322           | 4.1837
 Model-only timing (excluding I/O overhead):
 Mean (ms)      | 0.0028           | 0.0105          
 Max (ms)       | 0.1314           | 0.1557          
+
+Audio Quality (Bela NN vs DSP RT Reference):
+MSE: 7.20e-02
+ESR: 0.1847 (18.47%)

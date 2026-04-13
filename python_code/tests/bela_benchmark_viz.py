@@ -116,6 +116,44 @@ def main():
     report_lines.append(f"{'Mean (ms)':<14s} | {model_stats_ap['mean']:<16.4f} | {model_stats_nn['mean']:<16.4f}")
     report_lines.append(f"{'Max (ms)':<14s} | {model_stats_ap['max']:<16.4f} | {model_stats_nn['max']:<16.4f}")
 
+    # --- Quality Metrics (ESR/MSE) ---
+    input_wav_path = os.path.join(PROJECT_ROOT, '..', 'raw_sound_files',
+                                    'funk-soul-guitar-clean-4_90bpm_G.wav')
+    has_audio_quality = False
+    
+    if os.path.exists(input_wav_path) and os.path.exists(distorted_wav_path):
+        try:
+            # Load Clean Input
+            y_in, sr_in = librosa.load(input_wav_path, sr=BELA_SR)
+            
+            # Generate Reference (DSP RT)
+            # Note: We use the same parameters as the C++ DSP implementation
+            rt_sat = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=sr_in)
+            y_ref = rt_sat.process(y_in)
+            
+            # Load Bela Output
+            y_bela, _ = librosa.load(distorted_wav_path, sr=BELA_SR)
+            
+            # Align lengths (truncate to shortest)
+            L = min(len(y_ref), len(y_bela))
+            y_ref = y_ref[:L]
+            y_bela = y_bela[:L]
+            
+            # Calculate Metrics
+            mse = np.mean((y_bela - y_ref)**2)
+            ref_energy = np.mean(y_ref**2)
+            esr = mse / (ref_energy + 1e-10)
+            
+            report_lines.append("")
+            report_lines.append("Audio Quality (Bela NN vs DSP RT Reference):")
+            report_lines.append(f"MSE: {mse:.2e}")
+            report_lines.append(f"ESR: {esr:.4f} ({esr*100:.2f}%)")
+            
+            has_audio_quality = True
+            
+        except Exception as e:
+             report_lines.append(f"\nError calculating audio quality: {e}")
+
     report_text = "\n".join(report_lines)
     print(report_text)
     print()
@@ -150,7 +188,7 @@ def main():
     bp = ax3.boxplot(
         [df_dsp['block_ms'].values, df_nn['block_ms'].values,
          df_dsp['model_ms'].values, df_nn['model_ms'].values],
-        labels=['All-Pass\n(block)', 'NN\n(block)', 'All-Pass\n(model)', 'NN\n(model)'],
+        tick_labels=['All-Pass\n(block)', 'NN\n(block)', 'All-Pass\n(model)', 'NN\n(model)'],
         patch_artist=True,
     )
     colors = ['lightgray', 'lightblue', 'lightgray', 'lightblue']
@@ -189,28 +227,37 @@ def main():
 
     # ---- Plot 6: Waveform comparison (Bela NN vs DSP RT vs Clean) ----
     ax6 = plt.subplot(3, 2, 6)
-    input_wav_path = os.path.join(PROJECT_ROOT, '..', 'raw_sound_files',
-                                  'funk-soul-guitar-clean-4_90bpm_G.wav')
+    # input_wav_path already defined above
     slc = slice(1000, 2000)
 
     has_waveforms = False
-    if os.path.exists(input_wav_path):
-        y_in, sr_in = librosa.load(input_wav_path, sr=BELA_SR)
+    
+    # If we already loaded data for quality stats, use it
+    if has_audio_quality:
         ax6.plot(y_in[slc], label='Clean Input', alpha=0.4, color='gray')
+        ax6.plot(y_ref[slc], label='DSP RT (Ref)', color='orange', linewidth=1)
+        ax6.plot(y_bela[slc], label='Bela NN Output', color='blue', linewidth=1)
         has_waveforms = True
-
-        # Generate DSP RT reference from the same input
-        rt_sat = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=sr_in)
-        y_dsp_rt = rt_sat.process(y_in)
-        ax6.plot(y_dsp_rt[slc], label='DSP RT', color='orange', linewidth=1)
-
-    if os.path.exists(distorted_wav_path):
-        y_dist, _ = librosa.load(distorted_wav_path, sr=BELA_SR)
-        ax6.plot(y_dist[slc], label='Bela NN Output', color='blue', linewidth=1)
-        has_waveforms = True
-
+        
+    # Fallback if quality check failed but files might exist for plotting independently 
+    # (or if we skipped quality check logic due to missing files but one file exists)
+    elif os.path.exists(input_wav_path):
+         y_in_plot, _ = librosa.load(input_wav_path, sr=BELA_SR)
+         ax6.plot(y_in_plot[slc], label='Clean Input', alpha=0.4, color='gray')
+         
+         # Re-gen DSP if needed
+         rt_sat_plot = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=BELA_SR)
+         y_dsp_plot = rt_sat_plot.process(y_in_plot)
+         ax6.plot(y_dsp_plot[slc], label='DSP RT', color='orange', linewidth=1)
+         
+         if os.path.exists(distorted_wav_path):
+            y_dist_plot, _ = librosa.load(distorted_wav_path, sr=BELA_SR)
+            ax6.plot(y_dist_plot[slc], label='Bela NN Output', color='blue', linewidth=1)
+            
+         has_waveforms = True
+    
     if has_waveforms:
-        ax6.set_title('Waveform Detail (Samples 1000–2000)')
+        ax6.set_title(f'Waveform Detail (Samples {slc.start}-{slc.stop})')
         ax6.set_xlabel('Sample')
         ax6.set_ylabel('Amplitude')
         ax6.legend()

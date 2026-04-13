@@ -103,7 +103,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     
     report_lines.append("Experiment A: Batch Processing Checks")
     report_lines.append("-------------------------------------")
-    report_lines.append(f"{'Model':<20} | {'Time(ms)':<10} | {'RTF':<8} | {'MSE':<10} | {'Speed vs DSP':<12}")
+    report_lines.append(f"{'Model':<20} | {'Time(ms)':<10} | {'RTF':<8} | {'MSE':<10} | {'ESR':<10} | {'Speed vs DSP':<12}")
     
     # Values for plotting
     model_names_plot = []
@@ -111,6 +111,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     
     # Get DSP ground truth first for MSE
     y_dsp_ref = wrappers["DSP Match"].process(y_full)
+    ref_energy = np.mean(y_dsp_ref**2)
     
     for name, wrapper in wrappers.items():
         # Timing Loop
@@ -133,10 +134,12 @@ def run_benchmark_suite(input_file, output_dir=None):
         y_out = wrapper.process(y_full)
         if name == "DSP Match":
             mse = 0.0
+            esr = 0.0
         else:
             # Normalize length
             L = min(len(y_out), len(y_dsp_ref))
             mse = np.mean((y_out[:L] - y_dsp_ref[:L])**2)
+            esr = mse / (ref_energy + 1e-10)
             
         # Save Output for all models
         input_stem = os.path.splitext(os.path.basename(input_file))[0]
@@ -148,11 +151,11 @@ def run_benchmark_suite(input_file, output_dir=None):
             dsp_time = results_A.get("DSP Match", {}).get("avg_time", avg_time) # minor bug handling if DSP not first, but it is inserted first
             ratio_str = f"{avg_time/dsp_time:.2f}x slower"
             
-        results_A[name] = {"avg_time": avg_time, "rtf": rtf, "mse": mse}
+        results_A[name] = {"avg_time": avg_time, "rtf": rtf, "mse": mse, "esr": esr}
         model_names_plot.append(name)
         rtfs_plot.append(rtf)
         
-        report_lines.append(f"{name:<20} | {avg_time*1000:8.2f}ms | {rtf:6.4f}   | {mse:.2e}   | {ratio_str}")
+        report_lines.append(f"{name:<20} | {avg_time*1000:8.2f}ms | {rtf:6.4f}   | {mse:.2e}   | {esr*100:6.2f}%   | {ratio_str}")
 
     report_lines.append("")
 
