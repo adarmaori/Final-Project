@@ -10,8 +10,20 @@ import time
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.nn.architecture import SimpleTCN
+from src.nn.architecture import SimpleTCN, AudioLSTM
 from src.nn.dataset import AudioEffectDataset
+
+
+def _build_model(args):
+    if args.model_type == "lstm":
+        return AudioLSTM(
+            input_channels=1,
+            hidden_size=args.lstm_hidden_size,
+            num_layers=args.lstm_num_layers,
+            dropout=args.lstm_dropout,
+            output_channels=1,
+        )
+    return SimpleTCN()
 
 def train(args):
     # 1. Setup
@@ -24,11 +36,17 @@ def train(args):
         full_dataset = AudioEffectDataset(
             data_root=args.data_root, 
             sample_rate=args.sample_rate, 
-            chunk_size=args.chunk_size
+            chunk_size=args.chunk_size,
+            input_subdir=args.input_subdir,
+            target_subdir=args.target_subdir,
         )
     except FileNotFoundError as e:
         print(f"Error: {e}")
         print("Please create the dataset folder structure (data/datasets/train/input and data/datasets/train/target).")
+        return
+
+    if len(full_dataset) == 0:
+        print("Error: Dataset has zero chunks. Check chunk_size and source files.")
         return
 
     # Split Train/Val (80/20)
@@ -40,11 +58,14 @@ def train(args):
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     
     # 3. Model
-    model = SimpleTCN().to(device)
+    model = _build_model(args).to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     
-    print(f"Model initialized. Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
+    print(
+        f"Model '{args.model_type}' initialized. "
+        f"Train size: {len(train_dataset)}, Val size: {len(val_dataset)}"
+    )
     
     # 4. Loop
     for epoch in range(args.epochs):
@@ -82,19 +103,21 @@ def train(args):
         
         # Save Checkpoint
         if (epoch + 1) % args.save_interval == 0:
-            ckpt_path = os.path.join(args.checkpoint_dir, f"tcn_epoch_{epoch+1}.pt")
+            ckpt_path = os.path.join(args.checkpoint_dir, f"{args.model_type}_epoch_{epoch+1}.pt")
             torch.save(model.state_dict(), ckpt_path)
             print(f"Saved checkpoint: {ckpt_path}")
 
     # Final Save
-    final_path = os.path.join(args.checkpoint_dir, "tcn_final.pt")
+    final_path = os.path.join(args.checkpoint_dir, f"{args.model_type}_final.pt")
     torch.save(model.state_dict(), final_path)
     print("Training Complete.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train TCN for Audio Effects")
-    parser.add_argument("--data_root", type=str, default="data/datasets", help="Path to inputs/targets dataset")
+    parser.add_argument("--data_root", type=str, default="data/datasets", help="Path to dataset root")
+    parser.add_argument("--input_subdir", type=str, default="inputs", help="Input folder under data_root")
+    parser.add_argument("--target_subdir", type=str, default="targets", help="Target folder under data_root")
     parser.add_argument("--chunk_size", type=int, default=16384, help="Audio Chunk Size")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
     parser.add_argument("--epochs", type=int, default=50, help="Number of Epochs")
@@ -102,6 +125,10 @@ if __name__ == "__main__":
     parser.add_argument("--sample_rate", type=int, default=44100, help="Sample Rate")
     parser.add_argument("--checkpoint_dir", type=str, default="models/checkpoints", help="Where to save models")
     parser.add_argument("--save_interval", type=int, default=10, help="Save model every N epochs")
+    parser.add_argument("--model_type", type=str, choices=["tcn", "lstm"], default="lstm", help="Model architecture")
+    parser.add_argument("--lstm_hidden_size", type=int, default=64, help="LSTM hidden size")
+    parser.add_argument("--lstm_num_layers", type=int, default=2, help="Number of LSTM layers")
+    parser.add_argument("--lstm_dropout", type=float, default=0.1, help="LSTM dropout (if num_layers > 1)")
 
     args = parser.parse_args()
     

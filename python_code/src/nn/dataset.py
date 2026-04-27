@@ -17,23 +17,35 @@ class AudioEffectDataset(Dataset):
                 file1.wav  (must match input filename)
                 ...
     """
-    def __init__(self, data_root, sample_rate=44100, chunk_size=2048, overlap=0.0):
+    def __init__(
+        self,
+        data_root,
+        sample_rate=44100,
+        chunk_size=2048,
+        overlap=0.0,
+        input_subdir="inputs",
+        target_subdir="targets",
+    ):
         """
         Args:
-            data_root (str): Path to dataset folder containing 'input' and 'target' subfolders.
+            data_root (str): Path to dataset folder containing input/target subfolders.
             sample_rate (int): Target sample rate.
             chunk_size (int): Number of samples per training example (sequence length).
             overlap (float): Overlap between chunks (0.0 to 1.0).
+            input_subdir (str): Input folder name under data_root.
+            target_subdir (str): Target folder name under data_root.
         """
         self.data_root = data_root
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size
-        self.input_dir = os.path.join(data_root, "inputs")
-        self.target_dir = os.path.join(data_root, "targets")
+        self.input_dir = os.path.join(data_root, input_subdir)
+        self.target_dir = os.path.join(data_root, target_subdir)
         
         # Verify directories exist
         if not os.path.exists(self.input_dir) or not os.path.exists(self.target_dir):
-             raise FileNotFoundError(f"Data directory must contain 'inputs' and 'targets' folders at {data_root}")
+            raise FileNotFoundError(
+                f"Missing dataset folders. Expected '{input_subdir}' and '{target_subdir}' under {data_root}"
+            )
 
         self.file_list = []
         input_files = sorted(glob.glob(os.path.join(self.input_dir, "*.wav")))

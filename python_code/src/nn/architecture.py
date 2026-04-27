@@ -56,3 +56,45 @@ class SimpleLSTM(nn.Module):
         out, hidden = self.lstm(x, hidden)
         out = self.fc(out)
         return out, hidden
+
+
+class AudioLSTM(nn.Module):
+    """Sequence-to-sequence LSTM for audio effect learning.
+
+    Accepts channel-first audio tensors and returns channel-first output to match
+    the existing dataset/training pipeline.
+    """
+
+    def __init__(
+        self,
+        input_channels=1,
+        hidden_size=64,
+        num_layers=2,
+        dropout=0.1,
+        output_channels=1,
+    ):
+        super().__init__()
+        lstm_dropout = dropout if num_layers > 1 else 0.0
+        self.lstm = nn.LSTM(
+            input_size=input_channels,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            dropout=lstm_dropout,
+            batch_first=True,
+        )
+        self.proj = nn.Linear(hidden_size, output_channels)
+
+    def forward(self, x):
+        # Supported input shapes:
+        # (B, C, T), (B, T, C), or (B, T)
+        if x.dim() == 2:
+            x = x.unsqueeze(-1)  # (B, T, 1)
+        elif x.dim() == 3:
+            # Convert channel-first (B, C, T) -> (B, T, C)
+            if x.size(1) <= 4 and x.size(2) > x.size(1):
+                x = x.transpose(1, 2)
+
+        y, _ = self.lstm(x)
+        y = self.proj(y)           # (B, T, output_channels)
+        y = y.transpose(1, 2)      # (B, output_channels, T)
+        return y

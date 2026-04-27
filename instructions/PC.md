@@ -1,6 +1,6 @@
 # PC plan 
 
-This project plan outlines a comparative study between a Neural Network (NN) and deterministic Digital Signal Processing (DSP) algorithms for audio effects. The focus is on **Distortion**, a perfect candidate because it is computationally cheap in DSP (simple math) but complex to model accurately with NNs (non-linearities).
+This project plan outlines a comparative study between a Neural Network (NN) and deterministic Digital Signal Processing (DSP) algorithms for audio effects. The current active focus is **Flanger** (modulated delay), with distortion/tube-saturation retained as a secondary baseline in the codebase.
 
 ## **Phase 1: The "Simple Start" (Non-Real-Time)**
 
@@ -20,13 +20,19 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
 #### **1. The Neural Network Platform**
 
 *   **Framework:** **PyTorch**.
-*   **Model Architecture:** **Causal Temporal Convolutional Network (TCN)**.
-    *   *Features:* Dilated convolutions (1, 2, 4...) allow learning long-term dependencies.
-    *   *Causality:* Uses custom `Chomp1d` layers and padding to ensure the model *only* looks at past samples, making it suitable for real-time processing simulation.
-    *   *Input/Output:* Accepts raw audio chunks (1D), outputs processed audio chunks (1D).
+*   **Model Architectures:**
+    *   **LSTM (active)**: sequence-to-sequence recurrent model for learning time-varying flanger response.
+    *   **TCN (supported)**: causal convolution model for direct comparison.
+    *   *Input/Output:* both models consume chunked mono audio and produce chunked mono targets.
 *   **Training Loop:** Implemented with split validation, MSE Loss, and automatic checkpointing.
 
 #### **2. Deterministic Implementations**
+
+*   **Flanger (active reference):**
+    $$delay(t) = c \cdot (1 + \sin(2\pi f t))$$
+    where $c$ is `center_delay` (ms) and $f$ is `rate` (Hz).
+    *   Sweep range is fixed to $[0, 2c]$ ms.
+    *   Includes feed-forward and feedback paths with a fractional-delay interpolated read head.
 
 *   **Tube Saturator (Improved):**
     A multi-stage chain for warm, analog-style distortion:
@@ -52,7 +58,14 @@ We have implemented `tests/phase1_benchmark.py` which performs the following:
 
 1.  **Processing Speed:** Time to process a fixed length file.
 2.  **Ratio:** Comparison of NN inference time vs. DSP execution time.
-3.  **Visual Quality:** Plots waveforms of Original vs. DSP vs. NN output for visual inspection.
+3.  **Quality Error:** MSE/ESR versus deterministic DSP reference.
+4.  **Real-Time Simulation:** block-by-block latency and jitter under fixed block size.
+5.  **Visual Quality:** Plots waveforms of Original vs. DSP vs. NN output for visual inspection.
+
+Current benchmark defaults compare:
+* DSP Match (offline flanger)
+* DSP RT (stateful real-time flanger)
+* NN checkpoints (`tcn_final.pt`, `lstm_final.pt` if available)
 
 ---
 
@@ -68,7 +81,8 @@ python_code/
 ├── data/                       # Audio Data Storage
 │   ├── datasets/               # Training Data
 │   │   ├── inputs/             # Clean wav files
-│   │   └── targets/            # DSP-processed wav files (Generated)
+│   │   ├── targets/            # Legacy/default target path
+│   │   └── targets_flange/     # Active flanger target path
 │   ├── processed/              # Inference/Benchmark outputs
 │   └── raw/                    # Miscellaneous raw files
 │
@@ -81,9 +95,9 @@ python_code/
 │   │   └── filters.py          # LPF/HPF filter helpers
 │   │
 │   ├── nn/                     # Neural Network Logic
-│   │   ├── architecture.py     # TCN, Causal Convs, Chomp1d
-│   │   ├── dataset.py          # AudioEffectDataset (Slicing/Loading)
-│   │   └── train.py            # Training Loop Script
+│   │   ├── architecture.py     # TCN + LSTM model definitions
+│   │   ├── dataset.py          # AudioEffectDataset (configurable input/target subdirs)
+│   │   └── train.py            # Training loop (supports --model_type tcn|lstm)
 │   │
 │   └── engine/                 # Unified Interfaces
 │       └── wrapper.py          # NNWrapper / DSPWrapper classes

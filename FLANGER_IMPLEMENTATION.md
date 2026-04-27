@@ -1,7 +1,7 @@
 # Flanger DSP Implementation - Summary
 
-**Status**: ✅ **COMPLETE & TESTED**  
-**Date**: April 13, 2026  
+**Status**: ✅ **COMPLETE, TESTED, AND INTEGRATED**  
+**Date**: April 27, 2026  
 **Architecture**: Datorro Standard (Figure 2.34 from reference)
 
 ---
@@ -18,6 +18,8 @@ A production-ready **flanger audio effect** has been implemented following the i
 - ✅ Built-in normalization to prevent clipping
 - ✅ Full integration with existing engine/wrapper system
 - ✅ 100% test coverage (9 comprehensive test suites)
+- ✅ Benchmark integration (`tests/phase1_benchmark.py`) with DSP flanger baseline
+- ✅ LSTM training pipeline integration for flanger dataset emulation
 
 ---
 
@@ -43,19 +45,20 @@ Main flanger effect implementation.
 - `flanger_effect()`: Offline batch processing function
 - `RealtimeFlanger`: Stateful real-time processor class
 
-**Key Algorithm (Datorro Standard)**:
+**Key Algorithm (Current Active Semantics)**:
 ```
-1. LFO modulates delay: delay(n) = depth × MOD(n)
+1. LFO modulates delay: delay(n) = center × (1 + MOD(n))
 2. Read delayed signal: x_d = buffer[interpolated_position]
 3. Feed-forward: y_raw = x + FF × x_d
 4. Feedback tap: x_fb = buffer[write_pos - K]
 5. Write: buffer[write_pos] = x + FB × x_fb
-6. Normalize: output = y_raw / (1 + FF)
+6. Normalize with feedback-aware gain bound
 ```
 
-**Parameters (Industrial Standard - Table 2.9)**:
+**Parameters (Current Project Usage)**:
 - `rate` (Hz): 0.1-1.0 (LFO frequency)
-- `depth` (ms): 0-2 (modulation range)
+- `center_delay` (ms): mean delay (sweep is always `0 .. 2*center_delay`)
+- `depth` (ms): legacy API argument retained for compatibility
 - `ff` (0-1): 0.7 (feed-forward coefficient)
 - `fb` (0-0.9): 0.7 (feedback coefficient)
 - `fs` (Hz): 44100 (sample rate)
@@ -115,9 +118,8 @@ x(n) ──┬──────────────────────
 - **All reset-able** via `.reset()` method
 
 ### Normalization
-- **Factor**: `1 / (1 + abs(FF))`
-- **Purpose**: Prevents output clipping when delay and input align
-- **Example**: With FF=0.7, max gain is 1/(1+0.7) = 0.588 (ensuring [-1,1] output)
+- **Factor**: feedback-aware bound (accounts for delayed-path amplification)
+- **Purpose**: Prevents clipping/overdrive under non-zero feedback conditions
 
 ---
 
@@ -137,7 +139,7 @@ output = flanger_effect(audio, rate=0.5, depth=1.0, fs=44100)
 from src.dsp.flanger import RealtimeFlanger
 from src.engine.wrapper import RealtimeDSPWrapper
 
-flanger = RealtimeFlanger(rate=0.5, depth=1.0, fs=44100)
+flanger = RealtimeFlanger(rate=0.5, center_delay=2.0, fs=44100)
 wrapper = RealtimeDSPWrapper(flanger)
 
 for audio_block in stream:
@@ -178,23 +180,22 @@ processor.reset()  # Between streams
 
 ---
 
-## Integration Ready ✅
+## Integration Status ✅
 
-### Immediate Next Steps
-1. **Add to benchmarks**: Integrate into `tests/phase1_benchmark.py`
-   - Add to processor list alongside `RealtimeTubeSaturator`
-   - Measure real-time factor
-   - Compare quality metrics
+### Completed Integrations
+1. **Benchmark integration** in `tests/phase1_benchmark.py`
+   - DSP Match: offline flanger reference
+   - DSP RT: stateful real-time flanger
+   - NN comparisons: `tcn_final.pt` and `lstm_final.pt` (if present)
 
-2. **Train NN model**: Use flanger as second effect
-   - Run `generate_targets.py` with flanger
-   - Train TCN on flanger targets
-   - Compare NN-learned vs. DSP implementation
+2. **Training integration** in `src/nn/train.py`
+   - Supports `--model_type lstm|tcn`
+   - Supports configurable `--input_subdir` and `--target_subdir`
+   - Active setup: `inputs -> targets_flange`
 
-3. **Data generation**: Create training pairs
-   - Raw audio → flanger DSP output (targets)
-   - Train network to learn flanger effect
-   - Benchmark convergence speed
+3. **Dataset generation flow**
+   - Generate targets using flanger params (e.g., `rate=0.2`, `center_delay=3.0`)
+   - Keep input/target filenames paired for training
 
 ### Known Limitations
 - Fractional delay uses linear interpolation (2-point) — upgrade to 4-point Lagrange for higher quality if needed
@@ -226,5 +227,5 @@ processor.reset()  # Between streams
 ---
 
 **Implementation by**: GitHub Copilot  
-**Date**: April 13, 2026  
-**Status**: Ready for NN training & benchmarking
+**Date**: April 27, 2026  
+**Status**: Ready for LSTM training & benchmark testbench runs

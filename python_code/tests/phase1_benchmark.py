@@ -10,7 +10,7 @@ import sys
 # Add project root to path to allow importing from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.dsp.distortion import tube_saturator, RealtimeTubeSaturator
+from src.dsp.flanger import flanger_effect, RealtimeFlanger
 from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
 def run_benchmark_suite(input_file, output_dir=None):
@@ -32,12 +32,21 @@ def run_benchmark_suite(input_file, output_dir=None):
         {
             "name": "Causal TCN (Final)",
             "path": os.path.join(project_models_dir, 'tcn_final.pt'),
+            "model_type": "tcn",
             "active": True,
             "color": "blue"
         },
         {
+            "name": "LSTM (Final)",
+            "path": os.path.join(project_models_dir, 'lstm_final.pt'),
+            "model_type": "lstm",
+            "active": True,
+            "color": "purple"
+        },
+        {
             "name": "TCN (Small) [Placeholder]", 
             "path": os.path.join(project_models_dir, 'tcn_small.pt'),
+            "model_type": "tcn",
             "active": False, # Set to True when model exists
             "color": "green"
         },
@@ -69,12 +78,12 @@ def run_benchmark_suite(input_file, output_dir=None):
     wrappers = {}
     
     # 2a. DSP Baseline (offline / batch)
-    dsp_wrapper = DSPWrapper(tube_saturator, drive=70.0, asymmetry=0.4, tone=5000, fs=sr)
+    dsp_wrapper = DSPWrapper(flanger_effect, rate=0.2, center_delay=3.0, ff=0.70, fb=0.12, fs=sr)
     wrappers["DSP Match"] = dsp_wrapper
     
     # 2b. Real-time DSP (stateful, block-by-block)
-    rt_saturator = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=sr)
-    rt_dsp_wrapper = RealtimeDSPWrapper(rt_saturator)
+    rt_flanger = RealtimeFlanger(rate=0.2, center_delay=3.0, ff=0.70, fb=0.12, fs=sr)
+    rt_dsp_wrapper = RealtimeDSPWrapper(rt_flanger)
     wrappers["DSP RT"] = rt_dsp_wrapper
     
     # 2c. NN Models
@@ -85,7 +94,7 @@ def run_benchmark_suite(input_file, output_dir=None):
             
         if os.path.exists(cfg['path']):
             # Instantiate Wrapper
-            w = NNWrapper(model_path=cfg['path'])
+            w = NNWrapper(model_path=cfg['path'], model_type=cfg.get('model_type', 'tcn'))
             wrappers[cfg['name']] = w
             
             # File size stats

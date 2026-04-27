@@ -6,7 +6,7 @@ import os
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.nn.architecture import SimpleTCN
+from src.nn.architecture import SimpleTCN, AudioLSTM
 
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
@@ -47,11 +47,13 @@ class RealtimeDSPWrapper:
             self.processor.reset()
 
 class NNWrapper:
-    def __init__(self, model_path=None, model_class=SimpleTCN, device='cpu'):
+    def __init__(self, model_path=None, model_class=None, model_type='tcn', device='cpu'):
         """
         Wraps a PyTorch Neural Network.
         """
         self.device = torch.device(device)
+        if model_class is None:
+            model_class = AudioLSTM if model_type == 'lstm' else SimpleTCN
         self.model = model_class()
         
         if model_path:
@@ -77,6 +79,8 @@ class NNWrapper:
         
         with torch.no_grad():
             y_tensor = self.model(x_tensor)
+            if isinstance(y_tensor, tuple):
+                y_tensor = y_tensor[0]
         
         # Output: (Length,)
         return y_tensor.squeeze().cpu().numpy()
