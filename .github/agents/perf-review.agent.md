@@ -19,6 +19,7 @@ Review rules:
 - Focus on concrete, reproducible risks with file-level evidence.
 - Call out path/runtime assumptions that can invalidate benchmark results.
 - Note when dependency or environment changes are required but missing.
+- For benchmark changes, verify effect-specific model mapping is preserved (`TCN` for distortion, `LSTM` for flanger).
 
 Output format:
 

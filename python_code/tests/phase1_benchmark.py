@@ -1,4 +1,5 @@
 import time
+import argparse
 import numpy as np
 import librosa
 import soundfile as sf
@@ -13,11 +14,44 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.dsp.flanger import flanger_effect, RealtimeFlanger
 from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
-def run_benchmark_suite(input_file, output_dir=None):
+def _build_models_config(project_models_dir, effect_mode):
+    """Select active models based on requested effect mode."""
+    return [
+        {
+            "name": "Causal TCN (Final)",
+            "path": os.path.join(project_models_dir, 'tcn_final.pt'),
+            "model_type": "tcn",
+            "active": effect_mode == "distortion",  # Distortion model
+            "color": "blue"
+        },
+        {
+            "name": "LSTM (Final)",
+            "path": os.path.join(project_models_dir, 'lstm_final.pt'),
+            "model_type": "lstm",
+            "active": effect_mode == "flange",  # Flanger model
+            "color": "purple"
+        },
+        {
+            "name": "TCN (Small) [Placeholder]",
+            "path": os.path.join(project_models_dir, 'tcn_small.pt'),
+            "model_type": "tcn",
+            "active": False, # Set to True when model exists
+            "color": "green"
+        },
+        {
+            "name": "Use Optimized ONNX [Placeholder]",
+            "path": os.path.join(project_models_dir, 'model_opt.onnx'),
+            "active": False,
+            "color": "red"
+        }
+    ]
+
+
+def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
     if output_dir is None:
         output_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 
-    print(f"--- Phase 1 Benchmark Suite: {os.path.basename(input_file)} ---")
+    print(f"--- Phase 1 Benchmark Suite: {os.path.basename(input_file)} [{effect_mode}] ---")
     os.makedirs(output_dir, exist_ok=True)
     
     # --- Configuration ---
@@ -27,36 +61,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     
     # Define Models to Benchmark (Add new models here)
     project_models_dir = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints')
-    
-    models_config = [
-        {
-            "name": "Causal TCN (Final)",
-            "path": os.path.join(project_models_dir, 'tcn_final.pt'),
-            "model_type": "tcn",
-            "active": True,
-            "color": "blue"
-        },
-        {
-            "name": "LSTM (Final)",
-            "path": os.path.join(project_models_dir, 'lstm_final.pt'),
-            "model_type": "lstm",
-            "active": True,
-            "color": "purple"
-        },
-        {
-            "name": "TCN (Small) [Placeholder]", 
-            "path": os.path.join(project_models_dir, 'tcn_small.pt'),
-            "model_type": "tcn",
-            "active": False, # Set to True when model exists
-            "color": "green"
-        },
-        {
-            "name": "Use Optimized ONNX [Placeholder]",
-            "path": os.path.join(project_models_dir, 'model_opt.onnx'),
-            "active": False, 
-            "color": "red"
-        }
-    ]
+    models_config = _build_models_config(project_models_dir, effect_mode)
 
     # --- 1. Load Data ---
     try:
@@ -71,6 +76,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     report_lines.append(f"==============================")
     report_lines.append(f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     report_lines.append(f"Input: {os.path.basename(input_file)} ({len(y_full)/sr:.2f}s @ {sr}Hz)")
+    report_lines.append(f"Effect Mode: {effect_mode}")
     report_lines.append(f"Test Configuration: {N_RUNS} runs/test, Block Size: {BLOCK_SIZE}")
     report_lines.append("")
 
@@ -260,7 +266,7 @@ def run_benchmark_suite(input_file, output_dir=None):
     ax2.plot(y_dsp_ref[slc], label="DSP Target", color='black', linewidth=1)
     
     for name, wrapper in wrappers.items():
-        if "NN" in name or "TCN" in name:
+        if name not in ("DSP Match", "DSP RT"):
             # Quick process to get fresh plot data if needed, or use saved logic? 
             # We'll just run inference on this slice specifically to be cleaner
             out_slice = wrapper.process(y_full[slc])
@@ -301,8 +307,22 @@ def run_benchmark_suite(input_file, output_dir=None):
     print(f"Reports saved to {output_dir}")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run phase1 benchmark for flanger/distortion models")
+    parser.add_argument("--effect", choices=["flange", "distortion"], default="flange", help="Select effect/model mapping")
+    parser.add_argument("--input_file", type=str, default=None, help="Filename in ../raw_sound_files/ to benchmark. If omitted, uses built-in defaults.")
+    args = parser.parse_args()
+
     # Use a file from the workspace if available
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+    if args.input_file:
+        test_file = os.path.join(project_root, "..", "raw_sound_files", args.input_file)
+        if not os.path.exists(test_file):
+            print(f"Input file not found: {test_file}")
+            sys.exit(1)
+        run_benchmark_suite(test_file, effect_mode=args.effect)
+        sys.exit(0)
+
     test_file_name = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
     test_file = os.path.join(project_root, test_file_name)
     
@@ -316,12 +336,12 @@ if __name__ == "__main__":
         sf.write(test_file, y, sr)
         print(f"Generated synthetic file at {test_file}")
         
-    run_benchmark_suite(test_file)
+    run_benchmark_suite(test_file, effect_mode=args.effect)
 
     # --- Second file: longer guitar riff (53 s) ---
     test_file_2_name = "../raw_sound_files/romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav"
     test_file_2 = os.path.join(project_root, test_file_2_name)
     if os.path.exists(test_file_2):
-        run_benchmark_suite(test_file_2)
+        run_benchmark_suite(test_file_2, effect_mode=args.effect)
     else:
         print(f"Skipping second benchmark — file not found: {test_file_2}")

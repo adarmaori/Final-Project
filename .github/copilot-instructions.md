@@ -16,7 +16,7 @@
 - Run inference on an input file (looked up under `../raw_sound_files/`):
   - `uv run inference.py --input_file "my_file.wav"`
 - Run benchmark suite:
-  - `uv run tests/phase1_benchmark.py`
+  - `uv run tests/phase1_benchmark.py --effect flange --input_file "my_file.wav"`
 
 ## Architecture
 - `python_code/src/dsp/`: deterministic audio effects baseline (`tube_saturator`, real-time stateful saturator).
@@ -28,6 +28,9 @@
 
 ## Conventions
 - Dataset pairing convention: each WAV in `data/datasets/inputs/` must have the same filename in `data/datasets/targets/`.
+- Effect/model convention:
+  - `LSTM` is for flanger (`targets_flange`)
+  - `TCN` is for distortion (`targets_distortion`)
 - Typical defaults are 44.1 kHz sample rate and chunked sequence training.
 - NN path uses channel-first tensors for TCN (`batch, channels, length`).
 - Real-time DSP relies on persistent filter state; call `reset()` between unrelated streams.
@@ -38,6 +41,9 @@
 - `NNWrapper` warns and proceeds with random weights when a checkpoint path is missing.
 - `AudioEffectDataset` currently hardcodes zero overlap behavior in chunk stride.
 - Benchmark model list contains placeholder entries that are inactive by default.
+- Benchmark supports `--effect flange|distortion` and optional `--input_file`.
+- CUDA training depends on the active `uv` environment resolving a CUDA-enabled PyTorch build; verify with:
+  - `uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"`
 
 ## Documentation Links
 - Project overview and workflow: `README.md`

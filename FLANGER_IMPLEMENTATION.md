@@ -186,7 +186,10 @@ processor.reset()  # Between streams
 1. **Benchmark integration** in `tests/phase1_benchmark.py`
    - DSP Match: offline flanger reference
    - DSP RT: stateful real-time flanger
-   - NN comparisons: `tcn_final.pt` and `lstm_final.pt` (if present)
+   - Effect mode switch: `--effect flange|distortion`
+   - Active mapping:
+     - `--effect flange` -> `lstm_final.pt`
+     - `--effect distortion` -> `tcn_final.pt`
 
 2. **Training integration** in `src/nn/train.py`
    - Supports `--model_type lstm|tcn`
@@ -196,6 +199,10 @@ processor.reset()  # Between streams
 3. **Dataset generation flow**
    - Generate targets using flanger params (e.g., `rate=0.2`, `center_delay=3.0`)
    - Keep input/target filenames paired for training
+
+### Current Workflow Notes
+- Python pipeline commands are run via `uv` (`uv sync`, `uv run ...`).
+- Recent flanger retraining has been run with extended epochs and saved to `models/checkpoints/lstm_final.pt`.
 
 ### Known Limitations
 - Fractional delay uses linear interpolation (2-point) — upgrade to 4-point Lagrange for higher quality if needed

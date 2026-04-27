@@ -10,8 +10,8 @@ We have implemented a complete end-to-end pipeline for **Phase 1 (Non-Real-Time 
 	* Delay law: `delay(t) = center_delay * (1 + sin(2*pi*rate*t))`
 	* Sweep range: `0 .. 2*center_delay` ms.
 *   **Neural Networks**:
-	* **LSTM (active training target)** for sequence-to-sequence effect emulation.
-	* **TCN** retained for comparison/backward compatibility.
+	* **LSTM** is the active model for **flanger** emulation.
+	* **TCN** is retained for the **distortion** track.
 *   **Dataset Generation**: `generate_targets.py` supports flanger target creation.
 *   **Training Loop**: Configurable model type (`lstm`/`tcn`) with checkpointing.
 *   **Inference Engine**: Unified wrappers for DSP and NN paths.
@@ -27,6 +27,21 @@ This project uses `uv` for dependency management.
 cd python_code
 uv sync
 ```
+
+All Python commands in this project are expected to run through `uv` (`uv sync`, `uv run ...`).
+
+### CUDA / GPU Usage (Optional but Recommended for Training)
+
+If a CUDA-capable GPU is available, training should run on GPU automatically when PyTorch in the active `uv` environment is CUDA-enabled.
+
+Quick checks:
+
+```bash
+nvidia-smi
+uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+If `torch.cuda.is_available()` is `False`, your active environment likely has a CPU-only PyTorch build.
 
 ### 2. Workflow
 
@@ -59,6 +74,7 @@ uv run src/nn/train.py \
 	--batch_size 16
 ```
 The final model will be saved to `python_code/models/checkpoints/lstm_final.pt`.
+When CUDA is available in the active environment, this command trains on GPU; otherwise it falls back to CPU.
 
 **Step C: Run Inference**
 Apply the trained model to a new audio file:
@@ -70,11 +86,17 @@ uv run inference.py --input_file "path/to/my_riff.wav"
 Output will be saved to `python_code/data/processed/`.
 
 **Step D: Benchmark**
-Compare DSP flanger vs trained NN models (TCN/LSTM if present):
+Compare DSP flanger vs trained NN model for a selected effect mode:
 
 ```bash
-uv run tests/phase1_benchmark.py
+uv run tests/phase1_benchmark.py --effect flange --input_file powerchords-mute.wav
 ```
+
+Effect-mode model mapping in `tests/phase1_benchmark.py`:
+- `--effect flange` -> activates `LSTM (Final)` and keeps TCN inactive.
+- `--effect distortion` -> activates `Causal TCN (Final)` and keeps LSTM inactive.
+
+If `--input_file` is omitted, the benchmark uses its built-in default files.
 
 *TODO: add file size comparisons (several runs)*
 *TODO: add statistics (several runs)*

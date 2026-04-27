@@ -21,6 +21,9 @@ applyTo:
 ## Cross-Track Consistency
 
 - Keep effect naming and parameter semantics aligned with Python baseline where practical (e.g., drive/asymmetry/tone concepts).
+- Keep effect/model mapping aligned with Python baseline:
+  - `TCN` for distortion
+  - `LSTM` for flanger
 - If output behavior diverges by design, record the reason in code comments or adjacent docs.
 
 ## Reference Docs

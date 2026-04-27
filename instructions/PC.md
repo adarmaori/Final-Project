@@ -25,6 +25,12 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
     *   **TCN (supported)**: causal convolution model for direct comparison.
     *   *Input/Output:* both models consume chunked mono audio and produce chunked mono targets.
 *   **Training Loop:** Implemented with split validation, MSE Loss, and automatic checkpointing.
+*   **CUDA Usage:**
+    *   Training is expected to use GPU when CUDA-enabled PyTorch is installed in the active `uv` environment.
+    *   Quick verification:
+        *   `nvidia-smi`
+        *   `uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"`
+    *   If CUDA is unavailable in this check, training will run on CPU.
 
 #### **2. Deterministic Implementations**
 
@@ -65,7 +71,15 @@ We have implemented `tests/phase1_benchmark.py` which performs the following:
 Current benchmark defaults compare:
 * DSP Match (offline flanger)
 * DSP RT (stateful real-time flanger)
-* NN checkpoints (`tcn_final.pt`, `lstm_final.pt` if available)
+* One NN checkpoint selected by effect mode:
+    * `--effect flange` => `lstm_final.pt`
+    * `--effect distortion` => `tcn_final.pt`
+
+Recommended benchmark invocation:
+```bash
+cd python_code
+uv run tests/phase1_benchmark.py --effect flange --input_file powerchords-mute.wav
+```
 
 ---
 

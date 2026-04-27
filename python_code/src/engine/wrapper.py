@@ -52,16 +52,25 @@ class NNWrapper:
         Wraps a PyTorch Neural Network.
         """
         self.device = torch.device(device)
-        if model_class is None:
-            model_class = AudioLSTM if model_type == 'lstm' else SimpleTCN
-        self.model = model_class()
-        
-        if model_path:
-            if os.path.exists(model_path):
-                print(f"Loading model from {model_path}...")
-                state_dict = torch.load(model_path, map_location=self.device)
-                self.model.load_state_dict(state_dict)
+        if model_path and os.path.exists(model_path):
+            print(f"Loading model from {os.path.basename(model_path)}...")
+            state_dict = torch.load(model_path, map_location=self.device)
+            
+            if model_type == 'lstm':
+                hidden_size = state_dict['lstm.weight_ih_l0'].shape[0] // 4
+                num_layers = 1
+                while f'lstm.weight_ih_l{num_layers}' in state_dict:
+                    num_layers += 1
+                self.model = AudioLSTM(hidden_size=hidden_size, num_layers=num_layers)
             else:
+                self.model = SimpleTCN()
+                
+            self.model.load_state_dict(state_dict)
+        else:
+            if model_class is None:
+                model_class = AudioLSTM if model_type == 'lstm' else SimpleTCN
+            self.model = model_class()
+            if model_path:
                 print(f"Warning: Model path {model_path} not found. Using random weights.")
         
         self.model.to(self.device)

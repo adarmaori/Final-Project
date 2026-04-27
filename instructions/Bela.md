@@ -1,5 +1,13 @@
 Implementing the distortion effect on the Bela platform is an excellent choice. Bela is essentially a small Linux computer (BeagleBone Black) with specialized hardware for ultra-low latency audio.
 
+## Cross-Track Note (Current Python Baseline)
+
+- Python workflow is managed with `uv` (`uv sync`, `uv run ...`).
+- Model/effect ownership in the Python track is now explicit:
+    - `TCN` for distortion
+    - `LSTM` for flanger
+- `tests/phase1_benchmark.py` supports `--effect flange|distortion` to keep hardware and software comparisons aligned.
+
 Here is the step-by-step implementation plan for your **Bela Neural Distortion**.
 
 ### 1\. The Core Concept

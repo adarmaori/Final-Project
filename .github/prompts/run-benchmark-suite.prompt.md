@@ -10,7 +10,7 @@ Use the user's arguments as constraints for inputs/models/runtime budget. Then:
 
 1. Confirm benchmark setup from `python_code/tests/phase1_benchmark.py`.
 2. Run the benchmark workflow from `python_code/`.
-3. If requested, add/remove model entries in the benchmark config safely.
+3. Prefer using effect mode flags (`--effect flange|distortion`) over manual model toggles; only edit model entries if explicitly requested.
 4. Summarize results with:
    - Processing time and Real-Time Factor (RTF)
    - Block-latency behavior and budget headroom
