@@ -196,9 +196,9 @@ def test_flanger_parameter_sweep():
     signal = np.sin(2 * np.pi * 440 * np.arange(4410) / fs).astype(np.float32)
     
     params_list = [
-        {"rate": 0.1, "depth": 0.5, "ff": 0.5, "fb": 0.5},
-        {"rate": 0.5, "depth": 1.0, "ff": 0.7, "fb": 0.7},
-        {"rate": 1.0, "depth": 2.0, "ff": 0.9, "fb": 0.9},
+        {"rate": 0.1, "center_delay": 0.5, "ff": 0.5, "fb": 0.5},
+        {"rate": 0.5, "center_delay": 1.0, "ff": 0.7, "fb": 0.7},
+        {"rate": 1.0, "center_delay": 2.0, "ff": 0.9, "fb": 0.9},
     ]
     
     for i, params in enumerate(params_list, 1):
@@ -206,7 +206,7 @@ def test_flanger_parameter_sweep():
         output = flanger.process(signal)
         
         assert np.all(np.isfinite(output)), f"Param set {i} produced NaN/Inf"
-        print(f"  ✓ Param set {i}: rate={params['rate']}Hz, depth={params['depth']}ms "
+        print(f"  ✓ Param set {i}: rate={params['rate']}Hz, center={params['center_delay']}ms "
               f"→ output range [{output.min():.3f}, {output.max():.3f}]")
 
 

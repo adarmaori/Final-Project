@@ -46,8 +46,8 @@ def flanger_effect(
     Args:
         audio_signal: Input audio array (1-D, mono)
         rate: LFO frequency in Hz (0.1-1.0 typical)
-        depth: Modulation depth in ms (typically 1-5 ms)
-        center_delay: Center delay in ms around which LFO sweeps
+        depth: Legacy argument kept for API compatibility (ignored)
+        center_delay: Mean delay in ms; sweep is always 0..2*center_delay
         ff: Feed-forward coefficient (0-1, typically 0.7)
         fb: Feedback coefficient (-0.9 to 0.9, abs must be < 1)
         fs: Sample rate in Hz
@@ -88,17 +88,16 @@ class RealtimeFlanger:
     
     Datorro standard architecture:
         1. LFO generates modulation signal MOD(n) ∈ [-1, 1]
-        2. MOD(n) modulates delay around center:
-            delay(n) = center_delay + depth * MOD(n)
+        2. MOD(n) modulates delay from 0..2*center around mean center:
+            delay(n) = center_delay * (1 + MOD(n))
       3. Delayed signal x_d reads from modulated position
       4. Output: y(n) = x(n) + FF * x_d(n)
       5. Feedback tap at K samples back fed to buffer
       6. Normalization prevents clipping
     
     Parameters (Industry Standard - Table 2.9):
-      - rate: 0.1-1 Hz (flanger LFO frequency)
-    - depth: 1-5 ms (flanger modulation range)
-    - center_delay: 1-4 ms
+            - rate: 0.1-1 Hz (flanger LFO frequency)
+        - center_delay: 1-4 ms (mean delay, sweep becomes 0..2*center)
       - ff: ~0.7 (feed-forward coefficient)
     - fb: ~0.1 to 0.3 for cleaner tone
     """
@@ -117,14 +116,14 @@ class RealtimeFlanger:
         
         Args:
             rate: LFO frequency in Hz
-            depth: Modulation depth in ms
-            center_delay: Center delay in ms
+            depth: Legacy argument kept for API compatibility (ignored)
+            center_delay: Mean delay in ms
             ff: Feed-forward gain (0-1)
             fb: Feedback coefficient (-0.9 to 0.9)
             fs: Sample rate in Hz
         """
         self.rate = rate
-        self.depth = depth  # in ms
+        self.depth = 2.0 * center_delay  # in ms, fixed full sweep for compatibility
         self.center_delay = center_delay  # in ms
         self.ff = ff
         self.fb = fb
@@ -134,8 +133,8 @@ class RealtimeFlanger:
         self._lfo = SineLFO(frequency=rate, fs=fs)
         
         # --- Delay buffer (circular) ----
-        # Max delay is center + depth; add margin for interpolation.
-        max_delay_ms = max(0.0, center_delay + abs(depth))
+        # Sweep is fixed to [0, 2*center_delay]; add margin for interpolation.
+        max_delay_ms = max(0.0, 2.0 * center_delay)
         max_delay_samples = int(np.ceil(max_delay_ms * fs / 1000.0)) + 2
         max_delay_samples = max(max_delay_samples, 8)
         self._buffer = np.zeros(max_delay_samples, dtype=np.float32)
@@ -148,8 +147,10 @@ class RealtimeFlanger:
         self._fb_tap_delay = min(max_delay_samples - 1, max_delay_samples // 2)
         
         # --- Normalization factor ----
-        # To avoid clipping with gain structure: 1 / (1 + FF)
-        self._norm_factor = 1.0 / (1.0 + abs(ff))
+        # Bound gain accounting for feedback energy in delayed path.
+        fb_abs = min(abs(fb), 0.99)
+        delayed_gain_bound = 1.0 / (1.0 - fb_abs)
+        self._norm_factor = 1.0 / (1.0 + abs(ff) * delayed_gain_bound)
         
     # ------------------------------------------------------------------
     def reset(self):
@@ -202,16 +203,15 @@ class RealtimeFlanger:
         # Get LFO modulation for this block in [-1, 1]
         lfo_values = self._lfo.get_samples(block_size)
         
-        # Convert delay controls from ms to samples
+        # Convert delay control from ms to samples
         center_samples = self.center_delay * self.fs / 1000.0
-        depth_samples = self.depth * self.fs / 1000.0
         
         for i in range(block_size):
             # 1. Get input sample
             x_in = audio_block[i]
             
-            # 2. Modulate delay around center with bipolar LFO.
-            delay_samples = center_samples + depth_samples * lfo_values[i]
+            # 2. Modulate delay with mean=center and full sweep [0, 2*center].
+            delay_samples = center_samples * (1.0 + lfo_values[i])
             delay_samples = max(0.0, min(delay_samples, self._buffer_size - 2.0))
             
             # 3. Read delayed sample with interpolation
