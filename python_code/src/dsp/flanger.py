@@ -12,16 +12,16 @@ Signal flow (per Figure 2.34):
            └──── FB * x_d(n-K) ◄────────┴───────────────────┕
 
 Where:
-  - M(n): Variable delay (0 ms for flanger)
+    - M(n): Center delay (usually 1-4 ms for audible sweeping)
   - frac: Fractional delay for smooth modulation
   - FF: Feed-forward coefficient (0.7 typical)
   - FB: Feedback coefficient (0.7 typical, stable if < 1)
   - K: Feedback tap location (fixed offset)
-  - MOD(n): LFO modulation signal [0, 1]
+    - MOD(n): LFO modulation signal [-1, 1]
 """
 
 import numpy as np
-from src.dsp.lfo import NormalizedLFO, SineLFO
+from src.dsp.lfo import SineLFO
 
 
 # ---------------------------------------------------------------------------
@@ -31,9 +31,10 @@ from src.dsp.lfo import NormalizedLFO, SineLFO
 def flanger_effect(
     audio_signal: np.ndarray,
     rate: float = 0.5,
-    depth: float = 1.0,
+    depth: float = 2.0,
+    center_delay: float = 2.5,
     ff: float = 0.7,
-    fb: float = 0.7,
+    fb: float = 0.2,
     fs: int = 44100,
 ) -> np.ndarray:
     """
@@ -45,15 +46,23 @@ def flanger_effect(
     Args:
         audio_signal: Input audio array (1-D, mono)
         rate: LFO frequency in Hz (0.1-1.0 typical)
-        depth: Modulation depth in ms (0-2 ms for flanger)
+        depth: Modulation depth in ms (typically 1-5 ms)
+        center_delay: Center delay in ms around which LFO sweeps
         ff: Feed-forward coefficient (0-1, typically 0.7)
-        fb: Feedback coefficient (0-0.9, must be < 1 for stability)
+        fb: Feedback coefficient (-0.9 to 0.9, abs must be < 1)
         fs: Sample rate in Hz
     
     Returns:
         Processed audio array (same shape as input)
     """
-    processor = RealtimeFlanger(rate=rate, depth=depth, ff=ff, fb=fb, fs=fs)
+    processor = RealtimeFlanger(
+        rate=rate,
+        depth=depth,
+        center_delay=center_delay,
+        ff=ff,
+        fb=fb,
+        fs=fs,
+    )
     
     # Process in blocks matching typical RT chunk size
     block_size = 2048
@@ -78,8 +87,9 @@ class RealtimeFlanger:
     process() calls, enabling seamless streaming.
     
     Datorro standard architecture:
-      1. LFO generates modulation signal MOD(n) ∈ [0, 1]
-      2. MOD(n) modulates delay: delay(n) = depth * MOD(n)
+        1. LFO generates modulation signal MOD(n) ∈ [-1, 1]
+        2. MOD(n) modulates delay around center:
+            delay(n) = center_delay + depth * MOD(n)
       3. Delayed signal x_d reads from modulated position
       4. Output: y(n) = x(n) + FF * x_d(n)
       5. Feedback tap at K samples back fed to buffer
@@ -87,17 +97,19 @@ class RealtimeFlanger:
     
     Parameters (Industry Standard - Table 2.9):
       - rate: 0.1-1 Hz (flanger LFO frequency)
-      - depth: 0-2 ms (flanger modulation range)
+    - depth: 1-5 ms (flanger modulation range)
+    - center_delay: 1-4 ms
       - ff: ~0.7 (feed-forward coefficient)
-      - fb: ~0.7 (feedback coefficient)
+    - fb: ~0.1 to 0.3 for cleaner tone
     """
     
     def __init__(
         self,
         rate: float = 0.5,
-        depth: float = 1.0,
+        depth: float = 2.0,
+        center_delay: float = 2.5,
         ff: float = 0.7,
-        fb: float = 0.7,
+        fb: float = 0.2,
         fs: int = 44100,
     ):
         """
@@ -106,23 +118,26 @@ class RealtimeFlanger:
         Args:
             rate: LFO frequency in Hz
             depth: Modulation depth in ms
+            center_delay: Center delay in ms
             ff: Feed-forward gain (0-1)
-            fb: Feedback coefficient (0-0.9)
+            fb: Feedback coefficient (-0.9 to 0.9)
             fs: Sample rate in Hz
         """
         self.rate = rate
         self.depth = depth  # in ms
+        self.center_delay = center_delay  # in ms
         self.ff = ff
         self.fb = fb
         self.fs = fs
         
-        # --- LFO (sine modulation, normalized to [0, 1]) ----
-        self._lfo = NormalizedLFO(SineLFO(frequency=rate, fs=fs))
+        # --- LFO (sine modulation in [-1, 1]) ----
+        self._lfo = SineLFO(frequency=rate, fs=fs)
         
         # --- Delay buffer (circular) ----
-        # Max delay = depth (in ms), convert to samples
-        max_delay_ms = depth
-        max_delay_samples = int(np.ceil(max_delay_ms * fs / 1000.0)) + 1
+        # Max delay is center + depth; add margin for interpolation.
+        max_delay_ms = max(0.0, center_delay + abs(depth))
+        max_delay_samples = int(np.ceil(max_delay_ms * fs / 1000.0)) + 2
+        max_delay_samples = max(max_delay_samples, 8)
         self._buffer = np.zeros(max_delay_samples, dtype=np.float32)
         self._buffer_idx = 0
         self._buffer_size = max_delay_samples
@@ -184,18 +199,20 @@ class RealtimeFlanger:
         block_size = len(audio_block)
         output = np.zeros(block_size, dtype=np.float32)
         
-        # Get LFO modulation for this block
+        # Get LFO modulation for this block in [-1, 1]
         lfo_values = self._lfo.get_samples(block_size)
         
-        # Convert depth from ms to samples
+        # Convert delay controls from ms to samples
+        center_samples = self.center_delay * self.fs / 1000.0
         depth_samples = self.depth * self.fs / 1000.0
         
         for i in range(block_size):
             # 1. Get input sample
             x_in = audio_block[i]
             
-            # 2. Modulate delay: delay(n) = depth * MOD(n)
-            delay_samples = depth_samples * lfo_values[i]
+            # 2. Modulate delay around center with bipolar LFO.
+            delay_samples = center_samples + depth_samples * lfo_values[i]
+            delay_samples = max(0.0, min(delay_samples, self._buffer_size - 2.0))
             
             # 3. Read delayed sample with interpolation
             x_delayed = self._linear_interpolate(delay_samples)

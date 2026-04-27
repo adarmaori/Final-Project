@@ -50,6 +50,7 @@ def _process_with_effect(y, sr, effect, args):
             y,
             rate=args.flanger_rate,
             depth=args.flanger_depth,
+            center_delay=args.flanger_center_delay,
             ff=args.flanger_ff,
             fb=args.flanger_fb,
             fs=sr,
@@ -138,11 +139,12 @@ def _build_arg_parser():
     parser.add_argument("--tube_asymmetry", type=float, default=0.4)
     parser.add_argument("--tube_tone", type=float, default=3000.0)
 
-    # Flanger parameters (Datorro-style defaults)
+    # Flanger parameters
     parser.add_argument("--flanger_rate", type=float, default=0.5, help="LFO rate in Hz.")
-    parser.add_argument("--flanger_depth", type=float, default=1.0, help="Depth in ms.")
+    parser.add_argument("--flanger_depth", type=float, default=2.0, help="Sweep depth in ms.")
+    parser.add_argument("--flanger_center_delay", type=float, default=2.5, help="Center delay in ms.")
     parser.add_argument("--flanger_ff", type=float, default=0.7, help="Feed-forward coefficient.")
-    parser.add_argument("--flanger_fb", type=float, default=0.7, help="Feedback coefficient.")
+    parser.add_argument("--flanger_fb", type=float, default=0.2, help="Feedback coefficient (-0.9 to 0.9).")
 
     return parser
 
