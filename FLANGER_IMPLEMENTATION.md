@@ -19,7 +19,7 @@ A production-ready **flanger audio effect** has been implemented following the i
 - ✅ Full integration with existing engine/wrapper system
 - ✅ 100% test coverage (9 comprehensive test suites)
 - ✅ Benchmark integration (`tests/phase1_benchmark.py`) with DSP flanger baseline
-- ✅ LSTM training pipeline integration for flanger dataset emulation
+- ✅ CRNN training pipeline integration for flanger dataset emulation
 
 ---
 
@@ -188,13 +188,18 @@ processor.reset()  # Between streams
    - DSP RT: stateful real-time flanger
    - Effect mode switch: `--effect flange|distortion`
    - Active mapping:
-     - `--effect flange` -> `lstm_final.pt`
+       - `--effect flange` -> `crnn_final.pt`
      - `--effect distortion` -> `tcn_final.pt`
 
 2. **Training integration** in `src/nn/train.py`
-   - Supports `--model_type lstm|tcn`
+   - Supports `--model_type crnn|lstm|tcn`
    - Supports configurable `--input_subdir` and `--target_subdir`
+   - Uses L1 + MR-STFT loss with warm-up masking on the first 10% of each chunk
    - Active setup: `inputs -> targets_flange`
+
+### LSTM Baseline Status
+- The original LSTM flanger baseline reached the benchmark stage but did not converge to the desired ESR target.
+- The current implementation uses a causal residual CRNN to improve the receptive field and preserve high-frequency detail.
 
 3. **Dataset generation flow**
    - Generate targets using flanger params (e.g., `rate=0.2`, `center_delay=3.0`)
@@ -202,7 +207,7 @@ processor.reset()  # Between streams
 
 ### Current Workflow Notes
 - Python pipeline commands are run via `uv` (`uv sync`, `uv run ...`).
-- Recent flanger retraining has been run with extended epochs and saved to `models/checkpoints/lstm_final.pt`.
+- Recent flanger retraining has been run with the upgraded CRNN and saved to `models/checkpoints/crnn_final.pt`.
 
 ### Known Limitations
 - Fractional delay uses linear interpolation (2-point) — upgrade to 4-point Lagrange for higher quality if needed
@@ -235,4 +240,4 @@ processor.reset()  # Between streams
 
 **Implementation by**: GitHub Copilot  
 **Date**: April 27, 2026  
-**Status**: Ready for LSTM training & benchmark testbench runs
+**Status**: Ready for CRNN training & benchmark testbench runs

@@ -10,10 +10,10 @@ We have implemented a complete end-to-end pipeline for **Phase 1 (Non-Real-Time 
 	* Delay law: `delay(t) = center_delay * (1 + sin(2*pi*rate*t))`
 	* Sweep range: `0 .. 2*center_delay` ms.
 *   **Neural Networks**:
-	* **LSTM** is the active model for **flanger** emulation.
+	* **CRNN** is now the active model for **flanger** emulation after the LSTM baseline failed to converge to the desired ESR target.
 	* **TCN** is retained for the **distortion** track.
 *   **Dataset Generation**: `generate_targets.py` supports flanger target creation.
-*   **Training Loop**: Configurable model type (`lstm`/`tcn`) with checkpointing.
+*   **Training Loop**: Configurable model type (`lstm`/`tcn`/`crnn`) with checkpointing, L1 + MR-STFT loss, and warm-up masking for each chunk.
 *   **Inference Engine**: Unified wrappers for DSP and NN paths.
 *   **Benchmark/Testbench**: `tests/phase1_benchmark.py` measures speed (RTF), block latency, and signal error against DSP flanger reference.
 
@@ -63,17 +63,18 @@ uv run generate_targets.py \
 (This saves processed files to `python_code/data/datasets/targets_flange/` with matching filenames.)
 
 **Step B: Train the Model**
-Train the LSTM to mimic the DSP flanger effect:
+Train the CRNN to mimic the DSP flanger effect:
 ```bash
 uv run src/nn/train.py \
-	--model_type lstm \
+	--model_type crnn \
 	--data_root data/datasets \
 	--input_subdir inputs \
 	--target_subdir targets_flange \
+	--chunk_size 88200 \
 	--epochs 100 \
 	--batch_size 16
 ```
-The final model will be saved to `python_code/models/checkpoints/lstm_final.pt`.
+The training loop uses an L1 + MR-STFT objective and ignores the first 10% of each chunk to let the recurrent state warm up. The final model will be saved to `python_code/models/checkpoints/crnn_final.pt`.
 When CUDA is available in the active environment, this command trains on GPU; otherwise it falls back to CPU.
 
 **Step C: Run Inference**
@@ -93,8 +94,8 @@ uv run tests/phase1_benchmark.py --effect flange --input_file powerchords-mute.w
 ```
 
 Effect-mode model mapping in `tests/phase1_benchmark.py`:
-- `--effect flange` -> activates `LSTM (Final)` and keeps TCN inactive.
-- `--effect distortion` -> activates `Causal TCN (Final)` and keeps LSTM inactive.
+- `--effect flange` -> activates `CRNN (Final)` and keeps TCN inactive.
+- `--effect distortion` -> activates `Causal TCN (Final)` and keeps the flanger CRNN inactive.
 
 If `--input_file` is omitted, the benchmark uses its built-in default files.
 
@@ -105,7 +106,7 @@ If `--input_file` is omitted, the benchmark uses its built-in default files.
 
 ## Comparisons
 
-| Feature | Deterministic DSP (Flanger) | Neural Network (LSTM/TCN) |
+| Feature | Deterministic DSP (Flanger) | Neural Network (CRNN/TCN) |
 | :--- | :--- | :--- |
 | **Method** | Modulated fractional delay + feedback/feed-forward | Learned sequence mapping |
 | **Complexity** | Low-level DSP operations | Higher model-dependent compute |

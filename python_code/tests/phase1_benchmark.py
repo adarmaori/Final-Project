@@ -25,6 +25,13 @@ def _build_models_config(project_models_dir, effect_mode):
             "color": "blue"
         },
         {
+            "name": "CRNN (Final)",
+            "path": os.path.join(project_models_dir, 'crnn_final.pt'),
+            "model_type": "crnn",
+            "active": effect_mode == "flange",  # Flanger model
+            "color": "cyan"
+        },
+        {
             "name": "LSTM (Final)",
             "path": os.path.join(project_models_dir, 'lstm_final.pt'),
             "model_type": "lstm",

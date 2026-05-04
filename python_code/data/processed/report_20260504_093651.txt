@@ -1,0 +1,33 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-05-04 09:35:17
+Input: powerchords-mute.wav (16.70s @ 44100Hz)
+Effect Mode: flange
+Test Configuration: 10 runs/test, Block Size: 512
+
+Skipping Causal TCN (Final) (Inactive/Placeholder)
+Loaded LSTM (Final): 0.26 MB, 67,265 params
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
+DSP Match            |  1545.94ms | 0.0926   | 0.00e+00   |   0.00%   | 1.0x
+DSP RT               |  1515.69ms | 0.0908   | 0.00e+00   |   0.00%   | 0.98x slower
+LSTM (Final)         |  4421.87ms | 0.2649   | 1.34e-03   |  34.68%   | 2.86x slower
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | LSTM (Final)   
+1.0        | 0.1327          | 0.1048          | 0.2890          |
+5.0        | 0.0916          | 0.0974          | 0.2493          |
+10.0       | 0.0912          | 0.0866          | 0.2532          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   1.1259 ms |   2.6416 ms |   9.70% (P99: 1.80ms)
+DSP RT               |   1.0318 ms |   1.4197 ms |   8.89% (P99: 1.19ms)
+LSTM (Final)         |   3.1828 ms |  45.1010 ms |  27.41% (P99: 6.70ms)

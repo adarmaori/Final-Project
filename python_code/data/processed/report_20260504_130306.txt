@@ -1,0 +1,36 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-05-04 13:00:23
+Input: powerchords-mute.wav (16.70s @ 44100Hz)
+Effect Mode: flange
+Test Configuration: 10 runs/test, Block Size: 512
+
+Skipping Causal TCN (Final) (Inactive/Placeholder)
+Loaded CRNN (Final): 0.33 MB, 83,137 params
+Loaded LSTM (Final): 0.26 MB, 67,265 params
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
+DSP Match            |  1951.46ms | 0.1169   | 0.00e+00   |   0.00%   | 1.0x
+DSP RT               |  1940.01ms | 0.1162   | 0.00e+00   |   0.00%   | 0.99x slower
+CRNN (Final)         |  3622.89ms | 0.2170   | 1.36e-03   |  35.19%   | 1.86x slower
+LSTM (Final)         |  4854.53ms | 0.2908   | 1.34e-03   |  34.68%   | 2.49x slower
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | CRNN (Final)    | LSTM (Final)   
+1.0        | 0.2131          | 0.1552          | 0.2680          | 0.3589          |
+5.0        | 0.1670          | 0.1538          | 0.2466          | 0.3445          |
+10.0       | 0.1600          | 0.1499          | 0.2602          | 0.3561          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   1.9817 ms |   3.4245 ms |  17.07% (P99: 3.25ms)
+DSP RT               |   1.8262 ms |   3.6722 ms |  15.73% (P99: 2.85ms)
+CRNN (Final)         |   6.9075 ms |  39.2439 ms |  59.50% (P99: 9.58ms)
+LSTM (Final)         |   4.6236 ms |  38.9984 ms |  39.82% (P99: 5.95ms)

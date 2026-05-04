@@ -6,7 +6,7 @@ import os
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.nn.architecture import SimpleTCN, AudioLSTM
+from src.nn.architecture import SimpleTCN, AudioLSTM, FlangerCRNN
 
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
@@ -62,13 +62,21 @@ class NNWrapper:
                 while f'lstm.weight_ih_l{num_layers}' in state_dict:
                     num_layers += 1
                 self.model = AudioLSTM(hidden_size=hidden_size, num_layers=num_layers)
+            elif model_type == 'crnn':
+                # Simplified loading for FlangerCRNN
+                self.model = FlangerCRNN()
             else:
                 self.model = SimpleTCN()
                 
             self.model.load_state_dict(state_dict)
         else:
             if model_class is None:
-                model_class = AudioLSTM if model_type == 'lstm' else SimpleTCN
+                if model_type == 'lstm':
+                    model_class = AudioLSTM
+                elif model_type == 'crnn':
+                    model_class = FlangerCRNN
+                else:
+                    model_class = SimpleTCN
             self.model = model_class()
             if model_path:
                 print(f"Warning: Model path {model_path} not found. Using random weights.")

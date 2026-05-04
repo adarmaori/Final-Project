@@ -5,7 +5,7 @@ For the FPGA platform, I strongly recommend implementing **Non-Linear Distortion
 - Python workflow is managed with `uv` (`uv sync`, `uv run ...`).
 - Model/effect ownership in the Python track is now explicit:
     - `TCN` for distortion
-    - `LSTM` for flanger
+    - `CRNN` for flanger
 - `tests/phase1_benchmark.py` supports `--effect flange|distortion` for effect-specific benchmarking.
 
 This effect is the "Hello World" of real-time audio AI because it is mathematically straightforward to implement deterministically, yet complex enough to justify using a Neural Network when you want to model "real" analog gear (like a tube amp).

@@ -8,7 +8,7 @@ applyTo: "python_code/**/*.py"
 - Run project commands from `python_code/` unless a task explicitly targets another track.
 - Preserve dataset pairing: every file in `data/datasets/inputs/` must map to the same filename in `data/datasets/targets/`.
 - Use effect-specific targets and model ownership:
-  - flanger: `targets_flange` with `lstm` models
+  - flanger: `targets_flange` with `crnn` models
   - distortion: `targets_distortion` with `tcn` models
 - Keep tensor and signal conventions stable unless migration is requested:
   - NN tensors are channel-first (`batch, channels, length`) for TCN paths.

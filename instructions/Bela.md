@@ -5,7 +5,7 @@ Implementing the distortion effect on the Bela platform is an excellent choice. 
 - Python workflow is managed with `uv` (`uv sync`, `uv run ...`).
 - Model/effect ownership in the Python track is now explicit:
     - `TCN` for distortion
-    - `LSTM` for flanger
+    - `CRNN` for flanger
 - `tests/phase1_benchmark.py` supports `--effect flange|distortion` to keep hardware and software comparisons aligned.
 
 Here is the step-by-step implementation plan for your **Bela Neural Distortion**.
@@ -37,7 +37,7 @@ You need to "capture" the sound of a distortion pedal.
       * Record the output.
       * You now have pairs of `input.wav` and `target.wav`.
 2.  **Train in Python:**
-      * Use PyTorch to train a simple **LSTM** or **GRU** network (try 1 layer, 8-16 units) to predict the *target* from the *input*.
+    * Use PyTorch to train a small **CRNN** (or GRU/LSTM baseline for comparison) to predict the *target* from the *input*.
       * Export the trained weights to a JSON file (RTNeural has a script for this).
 
 #### Step B: The C++ Code (on Bela)
@@ -82,7 +82,7 @@ void render(BelaContext *context, void *userData) {
 Bela runs on an ARM Cortex-A8. To make the NN run without "clicks" (xruns):
 
 1.  **Use NEON Instructions:** RTNeural can use the NEON SIMD unit on the BeagleBone. Make sure to enable this flag in the Makefile or compiler settings.
-2.  **Keep it Small:** Start with a very small network (e.g., a standard MLP with 16 neurons). If the CPU usage (checked in the IDE) is \< 40%, you can upgrade to a GRU/LSTM for better sound.
+2.  **Keep it Small:** Start with a very small network (e.g., a standard MLP with 16 neurons). If the CPU usage (checked in the IDE) is < 40%, you can upgrade to a CRNN or GRU/LSTM for better sound.
 
 ### 4\. What to show in the Mid-Term Presentation (12.4.2026)
 

@@ -2,6 +2,8 @@
 
 This project plan outlines a comparative study between a Neural Network (NN) and deterministic Digital Signal Processing (DSP) algorithms for audio effects. The current active focus is **Flanger** (modulated delay), with distortion/tube-saturation retained as a secondary baseline in the codebase.
 
+The initial LSTM flanger baseline reached benchmark runs but failed to converge to the desired ESR target. The active flanger architecture has been upgraded to a causal residual CRNN.
+
 ## **Phase 1: The "Simple Start" (Non-Real-Time)**
 
 Before tackling real-time streams, build a foundation that processes `.wav` files. This isolates the algorithmic performance from audio I/O latency.
@@ -21,10 +23,10 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
 
 *   **Framework:** **PyTorch**.
 *   **Model Architectures:**
-    *   **LSTM (active)**: sequence-to-sequence recurrent model for learning time-varying flanger response.
+    *   **CRNN (active)**: causal residual convolution + GRU recurrence model for learning time-varying flanger response.
     *   **TCN (supported)**: causal convolution model for direct comparison.
     *   *Input/Output:* both models consume chunked mono audio and produce chunked mono targets.
-*   **Training Loop:** Implemented with split validation, MSE Loss, and automatic checkpointing.
+*   **Training Loop:** Implemented with split validation, L1 + MR-STFT loss, warm-up masking, and automatic checkpointing.
 *   **CUDA Usage:**
     *   Training is expected to use GPU when CUDA-enabled PyTorch is installed in the active `uv` environment.
     *   Quick verification:
@@ -72,7 +74,7 @@ Current benchmark defaults compare:
 * DSP Match (offline flanger)
 * DSP RT (stateful real-time flanger)
 * One NN checkpoint selected by effect mode:
-    * `--effect flange` => `lstm_final.pt`
+    * `--effect flange` => `crnn_final.pt`
     * `--effect distortion` => `tcn_final.pt`
 
 Recommended benchmark invocation:
@@ -109,9 +111,9 @@ python_code/
 │   │   └── filters.py          # LPF/HPF filter helpers
 │   │
 │   ├── nn/                     # Neural Network Logic
-│   │   ├── architecture.py     # TCN + LSTM model definitions
+│   │   ├── architecture.py     # CRNN + TCN model definitions
 │   │   ├── dataset.py          # AudioEffectDataset (configurable input/target subdirs)
-│   │   └── train.py            # Training loop (supports --model_type tcn|lstm)
+│   │   └── train.py            # Training loop (supports --model_type tcn|lstm|crnn)
 │   │
 │   └── engine/                 # Unified Interfaces
 │       └── wrapper.py          # NNWrapper / DSPWrapper classes

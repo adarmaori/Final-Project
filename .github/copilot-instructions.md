@@ -29,7 +29,7 @@
 ## Conventions
 - Dataset pairing convention: each WAV in `data/datasets/inputs/` must have the same filename in `data/datasets/targets/`.
 - Effect/model convention:
-  - `LSTM` is for flanger (`targets_flange`)
+  - `CRNN` is for flanger (`targets_flange`)
   - `TCN` is for distortion (`targets_distortion`)
 - Typical defaults are 44.1 kHz sample rate and chunked sequence training.
 - NN path uses channel-first tensors for TCN (`batch, channels, length`).
