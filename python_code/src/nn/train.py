@@ -36,7 +36,7 @@ MODEL_SEARCH_SPACES = {
         "num_blocks": [1, 2, 3],
     },
     "lstm": {
-        "input_size": [1],
+        "input_size": [1, 3, 5, 7],
         "hidden_size": [8, 16, 32, 64],
         "output_size": [1],
         "num_layers": [1, 2, 3],
