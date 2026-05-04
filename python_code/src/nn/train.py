@@ -1,116 +1,134 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
-import sys
-import os
-import argparse
-import time
+from __future__ import annotations
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from itertools import product
 
-from src.nn.architecture import SimpleTCN
-from src.nn.dataset import AudioEffectDataset
+from src.nn.dataset import DatasetConfig
+from src.nn.evaluator import EvaluationConfig, evaluate_experiments
+from src.nn.trainer import ExperimentConfig, ModelConfig, TrainingConfig, run_experiment
 
-def train(args):
-    # 1. Setup
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-    
-    # 2. Data
-    print("Loading dataset...")
-    try:
-        full_dataset = AudioEffectDataset(
-            data_root=args.data_root, 
-            sample_rate=args.sample_rate, 
-            chunk_size=args.chunk_size
+
+DATASET = DatasetConfig(
+    data_root="data/datasets",
+    sample_rate=44_100,
+    chunk_size=16_384,
+    overlap=0.5,
+    normalize=False,
+)
+
+
+TRAINING = TrainingConfig(
+    epochs=50,
+    batch_size=16,
+    learning_rate=1e-3,
+    validation_split=0.2,
+    checkpoint_root="models/checkpoints",
+    save_every=10,
+)
+
+
+MODEL_SEARCH_SPACES = {
+    "tcn": {
+        "input_channels": [1],
+        "output_channels": [1],
+        "hidden_channels": [8, 16, 32],
+        "kernel_size": [3, 5, 7],
+        "dilation": [1, 2],
+        "num_blocks": [1, 2, 3],
+    },
+    "lstm": {
+        "input_size": [1],
+        "hidden_size": [8, 16, 32, 64],
+        "output_size": [1],
+        "num_layers": [1, 2, 3],
+    },
+}
+
+
+ACTIVE_MODEL_FAMILIES = [
+    "tcn",
+    "lstm",
+]
+
+
+EVALUATION = EvaluationConfig(
+    batch_size=1,
+    num_workers=0,
+    warmup_batches=3,
+    timed_batches=20,
+    device=None,
+    csv_path="data/processed/nn_latency_report.csv",
+    description="Post-training latency and NMSE evaluation for selected audio-effect network experiments",
+)
+
+
+def main() -> None:
+    experiments = build_experiments(
+        model_families=ACTIVE_MODEL_FAMILIES,
+        search_spaces=MODEL_SEARCH_SPACES,
+        dataset=DATASET,
+        training=TRAINING,
+    )
+
+    print(f"Generated {len(experiments)} experiments")
+
+    summaries = []
+    for experiment_name, config in experiments.items():
+        summaries.append(run_experiment(config))
+
+    evaluation_results = evaluate_experiments(summaries, experiments, EVALUATION)
+
+    print("\nExperiment summary")
+    for summary in summaries:
+        print(
+            f"- {summary['name']}: best_val_loss={summary['best_val_loss']:.6f} "
+            f"run_dir={summary['run_dir']}"
         )
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        print("Please create the dataset folder structure (data/datasets/train/input and data/datasets/train/target).")
-        return
 
-    # Split Train/Val (80/20)
-    train_size = int(0.8 * len(full_dataset))
-    val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
-    
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-    
-    # 3. Model
-    model = SimpleTCN().to(device)
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    
-    print(f"Model initialized. Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
-    
-    # 4. Loop
-    for epoch in range(args.epochs):
-        model.train()
-        running_loss = 0.0
-        start_time = time.time()
-        
-        for batch_idx, (inputs, targets) in enumerate(train_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            
-            running_loss += loss.item()
-            
-        # Validation
-        model.eval()
-        val_loss = 0.0
-        with torch.no_grad():
-            for inputs, targets in val_loader:
-                inputs, targets = inputs.to(device), targets.to(device)
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                val_loss += loss.item()
-        
-        avg_train_loss = running_loss / len(train_loader)
-        avg_val_loss = val_loss / len(val_loader) if len(val_loader) > 0 else 0
-        
-        print(f"Epoch [{epoch+1}/{args.epochs}] "
-              f"Train Loss: {avg_train_loss:.6f} | Val Loss: {avg_val_loss:.6f} "
-              f"({time.time() - start_time:.2f}s)")
-        
-        # Save Checkpoint
-        if (epoch + 1) % args.save_interval == 0:
-            ckpt_path = os.path.join(args.checkpoint_dir, f"tcn_epoch_{epoch+1}.pt")
-            torch.save(model.state_dict(), ckpt_path)
-            print(f"Saved checkpoint: {ckpt_path}")
+    print("\nLatency summary")
+    for result in evaluation_results:
+        print(
+            f"- {result['experiment']}: avg_batch_ms={result['avg_batch_ms']:.4f} "
+            f"avg_sample_us={result['avg_sample_us']:.4f} "
+            f"nmse_percent={result['nmse_percent']:.4f} "
+            f"samples_per_second={result['samples_per_second']:.1f}"
+        )
 
-    # Final Save
-    final_path = os.path.join(args.checkpoint_dir, "tcn_final.pt")
-    torch.save(model.state_dict(), final_path)
-    print("Training Complete.")
+
+def build_experiments(
+    model_families: list[str],
+    search_spaces: dict[str, dict[str, list[int]]],
+    dataset: DatasetConfig,
+    training: TrainingConfig,
+) -> dict[str, ExperimentConfig]:
+    experiments: dict[str, ExperimentConfig] = {}
+
+    for family in model_families:
+        family_space = search_spaces.get(family)
+        if family_space is None:
+            raise ValueError(f"Missing search space for model family: {family}")
+
+        for kwargs in expand_search_space(family_space):
+            experiment_name = build_experiment_name(family, kwargs)
+            experiments[experiment_name] = ExperimentConfig(
+                name=experiment_name,
+                model=ModelConfig(name=family, kwargs=kwargs),
+                dataset=dataset,
+                training=training,
+            )
+
+    return experiments
+
+
+def expand_search_space(search_space: dict[str, list[int]]) -> list[dict[str, int]]:
+    keys = list(search_space.keys())
+    values = [search_space[key] for key in keys]
+    return [dict(zip(keys, combo, strict=False)) for combo in product(*values)]
+
+
+def build_experiment_name(model_family: str, kwargs: dict[str, int]) -> str:
+    suffix = "_".join(f"{key}-{value}" for key, value in kwargs.items())
+    return f"{model_family}_{suffix}"
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train TCN for Audio Effects")
-    parser.add_argument("--data_root", type=str, default="data/datasets", help="Path to inputs/targets dataset")
-    parser.add_argument("--chunk_size", type=int, default=16384, help="Audio Chunk Size")
-    parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
-    parser.add_argument("--epochs", type=int, default=50, help="Number of Epochs")
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning Rate")
-    parser.add_argument("--sample_rate", type=int, default=44100, help="Sample Rate")
-    parser.add_argument("--checkpoint_dir", type=str, default="models/checkpoints", help="Where to save models")
-    parser.add_argument("--save_interval", type=int, default=10, help="Save model every N epochs")
-
-    args = parser.parse_args()
-    
-    # Ensure checkpoint dir exists
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
-    
-    # Relative path fix for VSCode execution from root
-    if not os.path.isabs(args.data_root):
-        # Assuming run from project root
-        pass 
-
-    train(args)
+    main()

@@ -1,0 +1,32 @@
+{
+  "name": "tcn_input_channels-1_output_channels-1_hidden_channels-8_kernel_size-7_dilation-1_num_blocks-2",
+  "model": {
+    "name": "tcn",
+    "kwargs": {
+      "input_channels": 1,
+      "output_channels": 1,
+      "hidden_channels": 8,
+      "kernel_size": 7,
+      "dilation": 1,
+      "num_blocks": 2
+    }
+  },
+  "dataset": {
+    "data_root": "data/datasets",
+    "sample_rate": 44100,
+    "chunk_size": 16384,
+    "overlap": 0.5,
+    "normalize": false
+  },
+  "training": {
+    "epochs": 50,
+    "batch_size": 16,
+    "learning_rate": 0.001,
+    "validation_split": 0.2,
+    "checkpoint_root": "models/checkpoints",
+    "save_every": 10,
+    "seed": 7,
+    "num_workers": 0,
+    "device": null
+  }
+}

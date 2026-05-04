@@ -58,6 +58,8 @@ class NNWrapper:
             if os.path.exists(model_path):
                 print(f"Loading model from {model_path}...")
                 state_dict = torch.load(model_path, map_location=self.device)
+                if isinstance(state_dict, dict) and "model_state_dict" in state_dict:
+                    state_dict = state_dict["model_state_dict"]
                 self.model.load_state_dict(state_dict)
             else:
                 print(f"Warning: Model path {model_path} not found. Using random weights.")
@@ -77,6 +79,8 @@ class NNWrapper:
         
         with torch.no_grad():
             y_tensor = self.model(x_tensor)
-        
+            if isinstance(y_tensor, tuple):
+                y_tensor = y_tensor[0]
+
         # Output: (Length,)
         return y_tensor.squeeze().cpu().numpy()
