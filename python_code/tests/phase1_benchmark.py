@@ -16,6 +16,10 @@ from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
 def _build_models_config(project_models_dir, effect_mode):
     """Select active models based on requested effect mode."""
+    crnn_model_path = os.path.join(project_models_dir, 'crnn', 'crnn_final.pt')
+    if not os.path.exists(crnn_model_path):
+        crnn_model_path = os.path.join(project_models_dir, 'crnn_final.pt')
+
     return [
         {
             "name": "Causal TCN (Final)",
@@ -26,7 +30,7 @@ def _build_models_config(project_models_dir, effect_mode):
         },
         {
             "name": "CRNN (Final)",
-            "path": os.path.join(project_models_dir, 'crnn_final.pt'),
+            "path": crnn_model_path,
             "model_type": "crnn",
             "active": effect_mode == "flange",  # Flanger model
             "color": "cyan"
