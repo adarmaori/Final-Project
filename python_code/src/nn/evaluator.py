@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 from typing import Any
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -112,6 +113,9 @@ def evaluate_experiment(
     avg_batch_ms = sum(batch_times_ms) / len(batch_times_ms)
     min_batch_ms = min(batch_times_ms)
     max_batch_ms = max(batch_times_ms)
+    p50_batch_ms = float(np.percentile(batch_times_ms, 50))
+    p95_batch_ms = float(np.percentile(batch_times_ms, 95))
+    p99_batch_ms = float(np.percentile(batch_times_ms, 99))
     samples_per_second = total_samples / (sum(batch_times_ms) / 1000.0)
     avg_sample_us = (sum(batch_times_ms) * 1000.0) / total_samples
     nmse_percent = 100.0 * total_squared_error / max(total_target_energy, 1e-12)
@@ -121,11 +125,15 @@ def evaluate_experiment(
         "model": experiment.model.name,
         "checkpoint": checkpoint_path,
         "device": str(device),
+        "sample_rate_hz": experiment.dataset.sample_rate,
         "chunk_size": experiment.dataset.chunk_size,
         "eval_batch_size": config.batch_size,
         "timed_batches": len(batch_times_ms),
         "avg_batch_ms": avg_batch_ms,
         "min_batch_ms": min_batch_ms,
+        "p50_batch_ms": p50_batch_ms,
+        "p95_batch_ms": p95_batch_ms,
+        "p99_batch_ms": p99_batch_ms,
         "max_batch_ms": max_batch_ms,
         "avg_sample_us": avg_sample_us,
         "samples_per_second": samples_per_second,
@@ -145,11 +153,15 @@ def write_results_csv(path: Path, results: list[dict[str, Any]], metadata: dict[
         "model",
         "checkpoint",
         "device",
+        "sample_rate_hz",
         "chunk_size",
         "eval_batch_size",
         "timed_batches",
         "avg_batch_ms",
         "min_batch_ms",
+        "p50_batch_ms",
+        "p95_batch_ms",
+        "p99_batch_ms",
         "max_batch_ms",
         "avg_sample_us",
         "samples_per_second",

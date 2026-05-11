@@ -46,3 +46,7 @@
   - `instructions/Bela.md`
   - `instructions/FPGA.md`
 - Roadmap artifact: `work_plan.pdf`
+
+## Specialized Agent Instructions
+- NN training/evaluation/plotting edits should also follow:
+  - `.github/instructions/nn-training-eval-plot.instructions.md`
