@@ -6,7 +6,7 @@ import os
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.nn.architecture import SimpleTCN, AudioLSTM, FlangerCRNN
+from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN
 
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
@@ -47,11 +47,13 @@ class RealtimeDSPWrapper:
             self.processor.reset()
 
 class NNWrapper:
-    def __init__(self, model_path=None, model_class=None, model_type='tcn', device='cpu'):
+    def __init__(self, model_path=None, model_class=None, model_type='tcn', device='cpu', quant_bits=0):
         """
         Wraps a PyTorch Neural Network.
         """
         self.device = torch.device(device)
+        self.model_type = model_type
+        self.quant_bits = quant_bits
         if model_path and os.path.exists(model_path):
             print(f"Loading model from {os.path.basename(model_path)}...")
             state_dict = torch.load(model_path, map_location=self.device)
@@ -65,16 +67,23 @@ class NNWrapper:
             elif model_type == 'crnn':
                 # Simplified loading for FlangerCRNN
                 self.model = FlangerCRNN()
+            elif model_type == 'tcn' and quant_bits > 0:
+                self.model = BrevitasQuantizedSimpleTCN(quant_bits=quant_bits)
             else:
                 self.model = SimpleTCN()
-                
-            self.model.load_state_dict(state_dict)
+
+            strict_loading = True
+            load_result = self.model.load_state_dict(state_dict, strict=strict_loading)
+            if load_result.missing_keys or load_result.unexpected_keys:
+                print(f"Quantized load summary: missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}")
         else:
             if model_class is None:
                 if model_type == 'lstm':
                     model_class = AudioLSTM
                 elif model_type == 'crnn':
                     model_class = FlangerCRNN
+                elif model_type == 'tcn' and quant_bits > 0:
+                    model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits)
                 else:
                     model_class = SimpleTCN
             self.model = model_class()
@@ -84,6 +93,10 @@ class NNWrapper:
         self.model.to(self.device)
         self.model.eval()
         self.name = "NeuralNetwork"
+
+    def calibrate(self, audio_buffer):
+        """Kept for compatibility; Brevitas models do not need a separate calibration pass here."""
+        return
 
     def process(self, audio_buffer):
         """

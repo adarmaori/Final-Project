@@ -10,6 +10,9 @@ applyTo: "python_code/**/*.py"
 - Use effect-specific targets and model ownership:
   - flanger: `targets_flange` with `crnn` models
   - distortion: `targets_distortion` with `tcn` models
+- For the distortion TCN, prefer the Brevitas-based quantized path when `--quant_bits` is set:
+  - train 16-bit first, then reuse the same architecture for 8-bit and 4-bit
+  - keep the dry residual anchor/output gain in place so polarity and overall level stay stable during quantized retraining
 - Keep tensor and signal conventions stable unless migration is requested:
   - NN tensors are channel-first (`batch, channels, length`) for TCN paths.
   - Default sample rate is typically 44.1 kHz.
@@ -29,6 +32,7 @@ applyTo: "python_code/**/*.py"
 - Prefer effect-explicit benchmark commands when feasible:
   - `uv run tests/phase1_benchmark.py --effect flange --input_file <file>.wav`
   - `uv run tests/phase1_benchmark.py --effect distortion --input_file <file>.wav`
+- For distortion quantization changes, also verify the quantized path explicitly with `--quant_bits` (starting with 16).
 
 ## Reference Docs
 

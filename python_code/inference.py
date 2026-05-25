@@ -28,7 +28,7 @@ def run_inference(args):
 
     # 2. Initialize Model
     print("Initializing Model...")
-    wrapper = NNWrapper(model_path=args.model_path, model_type=args.model_type)
+    wrapper = NNWrapper(model_path=args.model_path, model_type=args.model_type, quant_bits=args.quant_bits)
     
     # 3. Load Audio
     print(f"Loading {input_path}...")
@@ -51,6 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_file", type=str, default="input.wav", help="Filename of input wav (in ../raw_sound_files/)")
     parser.add_argument("--model_path", type=str, default="models/checkpoints/tcn_final.pt", help="Path to trained model .pt file")
     parser.add_argument("--model_type", type=str, default="tcn", choices=["tcn", "lstm"], help="Model type: tcn or lstm")
+    parser.add_argument("--quant_bits", type=int, default=0, help="Set to 16 for the quantized TCN path")
     parser.add_argument("--output_file", type=str, default=None, help="Filename to save output wav (in data/processed/). Auto-generated if None.")
 
     args = parser.parse_args()

@@ -16,6 +16,9 @@ applyTo:
   - Baseline deterministic/DSP implementation.
   - Naive NN implementation.
   - Optimized NN (quantization/pipelining or equivalent).
+- For the distortion track, the optimized NN should follow the Brevitas quantized TCN progression used in Python:
+  - 16-bit first, then 8-bit, then 4-bit
+  - retain the dry residual anchor/output gain so the exported fixed-point model preserves polarity and level
 - Document latency/resource tradeoffs with concrete metrics when introducing architecture changes.
 
 ## Cross-Track Consistency

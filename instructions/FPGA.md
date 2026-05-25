@@ -7,6 +7,18 @@ For the FPGA platform, I strongly recommend implementing **Non-Linear Distortion
     - `TCN` for distortion
     - `CRNN` for flanger
 - `tests/phase1_benchmark.py` supports `--effect flange|distortion` for effect-specific benchmarking.
+- The distortion TCN is now a Brevitas-trained quantized model with a dry residual anchor, which makes it a better match for fixed-point hardware export.
+
+## Quantization Method for the FPGA Path
+
+For the distortion TCN, the general method is:
+
+1. Train the model with Brevitas QAT at 16-bit first.
+2. Reuse the same network for 8-bit.
+3. Attempt 4-bit only after the 16-bit and 8-bit checkpoints sound correct.
+4. Export the learned weights and quantization parameters into the FPGA-friendly fixed-point representation.
+
+The dry residual anchor is important here because it keeps the network output centered around the input signal. That reduces the chance of sign flips or large gain drift once you quantize the model for hardware.
 
 This effect is the "Hello World" of real-time audio AI because it is mathematically straightforward to implement deterministically, yet complex enough to justify using a Neural Network when you want to model "real" analog gear (like a tube amp).
 
@@ -31,6 +43,7 @@ In traditional DSP, you define a mathematical "transfer function" that shapes th
 Instead of writing the equation, you train a tiny Neural Network to *learn* the behavior of a distortion circuit (or even just to learn the $\tanh$ function itself as a proof-of-concept).
 
 * **The Model:** A simple **MLP (Multi-Layer Perceptron)** with 1-2 hidden layers (e.g., 8-16 neurons per layer).
+* **Better Fit for This Project:** a small **quantized TCN** trained with Brevitas. It is still compact enough for hardware, but it matches the existing distortion pipeline better than a generic MLP.
 * **FPGA Implementation:**
     * **Matrix Multiplication:** The FPGA performs $Weights \times Inputs + Bias$.
     * **Activation Function:** You use a simplified activation (like ReLU or a small LUT for Sigmoid) between layers.
@@ -48,7 +61,14 @@ This setup allows you to measure exactly what the project requires:
 ### Summary Recommendation
 Implement a **"Smart Pedal"** on the FPGA.
 1.  **Switch position 1:** Runs a standard mathematical clipper (Hard Clipping).
-2.  **Switch position 2:** Runs a small Neural Network trained to mimic a famous overdrive pedal (e.g., Ibanez Tube Screamer).
+2.  **Switch position 2:** Runs the quantized TCN trained to mimic the tube-saturator distortion target.
+
+Recommended build order:
+1. 16-bit Brevitas TCN.
+2. 8-bit Brevitas TCN.
+3. 4-bit Brevitas TCN.
+
+That sequence gives you a clean comparison of quality vs. resource usage before you commit to a fixed-point FPGA implementation.
 
 This perfectly demonstrates the transition from "Old School DSP" to "Modern AI Audio" on hardware.
 

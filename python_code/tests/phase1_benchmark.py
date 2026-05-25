@@ -11,20 +11,25 @@ import sys
 # Add project root to path to allow importing from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.dsp.flanger import flanger_effect, RealtimeFlanger
+from src.dsp.distortion import tube_saturator, RealtimeTubeSaturator
 from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
-def _build_models_config(project_models_dir, effect_mode):
+def _build_models_config(project_models_dir, effect_mode, quant_bits=0):
     """Select active models based on requested effect mode."""
     crnn_model_path = os.path.join(project_models_dir, 'crnn', 'crnn_final.pt')
     if not os.path.exists(crnn_model_path):
         crnn_model_path = os.path.join(project_models_dir, 'crnn_final.pt')
 
+    tcn_model_name = 'tcn_final.pt'
+    if quant_bits > 0:
+        tcn_model_name = f'tcn_q{quant_bits}_final.pt'
+
     return [
         {
-            "name": "Causal TCN (Final)",
-            "path": os.path.join(project_models_dir, 'tcn_final.pt'),
+            "name": f"Causal TCN ({quant_bits}-bit)" if quant_bits > 0 else "Causal TCN (Final)",
+            "path": os.path.join(project_models_dir, tcn_model_name),
             "model_type": "tcn",
+            "quant_bits": quant_bits,
             "active": effect_mode == "distortion",  # Distortion model
             "color": "blue"
         },
@@ -58,7 +63,7 @@ def _build_models_config(project_models_dir, effect_mode):
     ]
 
 
-def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
+def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant_bits=0):
     if output_dir is None:
         output_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 
@@ -72,7 +77,7 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
     
     # Define Models to Benchmark (Add new models here)
     project_models_dir = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints')
-    models_config = _build_models_config(project_models_dir, effect_mode)
+    models_config = _build_models_config(project_models_dir, effect_mode, quant_bits=quant_bits)
 
     # --- 1. Load Data ---
     try:
@@ -95,12 +100,12 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
     wrappers = {}
     
     # 2a. DSP Baseline (offline / batch)
-    dsp_wrapper = DSPWrapper(flanger_effect, rate=0.2, center_delay=3.0, ff=0.70, fb=0.12, fs=sr)
+    dsp_wrapper = DSPWrapper(tube_saturator, drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
     wrappers["DSP Match"] = dsp_wrapper
     
     # 2b. Real-time DSP (stateful, block-by-block)
-    rt_flanger = RealtimeFlanger(rate=0.2, center_delay=3.0, ff=0.70, fb=0.12, fs=sr)
-    rt_dsp_wrapper = RealtimeDSPWrapper(rt_flanger)
+    rt_distortion = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
+    rt_dsp_wrapper = RealtimeDSPWrapper(rt_distortion)
     wrappers["DSP RT"] = rt_dsp_wrapper
     
     # 2c. NN Models
@@ -111,7 +116,9 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
             
         if os.path.exists(cfg['path']):
             # Instantiate Wrapper
-            w = NNWrapper(model_path=cfg['path'], model_type=cfg.get('model_type', 'tcn'))
+            w = NNWrapper(model_path=cfg['path'], model_type=cfg.get('model_type', 'tcn'), quant_bits=cfg.get('quant_bits', 0))
+            if cfg.get('quant_bits', 0) > 0 and hasattr(w, 'calibrate'):
+                w.calibrate(y_full)
             wrappers[cfg['name']] = w
             
             # File size stats
@@ -161,10 +168,17 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
         if name == "DSP Match":
             mse = 0.0
             esr = 0.0
+            polarity_mse = 0.0
+            polarity_note = ""
         else:
             # Normalize length
             L = min(len(y_out), len(y_dsp_ref))
-            mse = np.mean((y_out[:L] - y_dsp_ref[:L])**2)
+            y_slice = y_out[:L]
+            ref_slice = y_dsp_ref[:L]
+            mse = np.mean((y_slice - ref_slice)**2)
+            neg_mse = np.mean((-y_slice - ref_slice)**2)
+            polarity_mse = min(mse, neg_mse)
+            polarity_note = f" | polarity mse: {polarity_mse:.2e} ({'-y' if neg_mse < mse else 'y'})"
             esr = mse / (ref_energy + 1e-10)
             
         # Save Output for all models
@@ -177,11 +191,11 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
             dsp_time = results_A.get("DSP Match", {}).get("avg_time", avg_time) # minor bug handling if DSP not first, but it is inserted first
             ratio_str = f"{avg_time/dsp_time:.2f}x slower"
             
-        results_A[name] = {"avg_time": avg_time, "rtf": rtf, "mse": mse, "esr": esr}
+        results_A[name] = {"avg_time": avg_time, "rtf": rtf, "mse": mse, "esr": esr, "polarity_mse": polarity_mse}
         model_names_plot.append(name)
         rtfs_plot.append(rtf)
         
-        report_lines.append(f"{name:<20} | {avg_time*1000:8.2f}ms | {rtf:6.4f}   | {mse:.2e}   | {esr*100:6.2f}%   | {ratio_str}")
+        report_lines.append(f"{name:<20} | {avg_time*1000:8.2f}ms | {rtf:6.4f}   | {mse:.2e}   | {esr*100:6.2f}%   | {ratio_str}{polarity_note}")
 
     report_lines.append("")
 
@@ -289,7 +303,7 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange"):
 
     # Plot 3: Latency Distribution (Experiment C)
     ax3 = plt.subplot(2, 1, 2)
-    ax3.boxplot(block_data_plot, labels=wrappers.keys())
+    ax3.boxplot(block_data_plot, tick_labels=list(wrappers.keys()))
     ax3.set_title(f"Simulated Real-Time Latency Jitter (Block Size {BLOCK_SIZE})")
     ax3.set_ylabel("Latency (ms)")
     ax3.axhline(y=block_duraion_ms, color='r', linestyle='--', label=f"Budget ({block_duraion_ms:.2f}ms)")
@@ -321,6 +335,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run phase1 benchmark for flanger/distortion models")
     parser.add_argument("--effect", choices=["flange", "distortion"], default="flange", help="Select effect/model mapping")
     parser.add_argument("--input_file", type=str, default=None, help="Filename in ../raw_sound_files/ to benchmark. If omitted, uses built-in defaults.")
+    parser.add_argument("--quant_bits", type=int, default=0, help="Set to 16 to benchmark the fake-quantized TCN")
     args = parser.parse_args()
 
     # Use a file from the workspace if available
@@ -331,7 +346,7 @@ if __name__ == "__main__":
         if not os.path.exists(test_file):
             print(f"Input file not found: {test_file}")
             sys.exit(1)
-        run_benchmark_suite(test_file, effect_mode=args.effect)
+        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits)
         sys.exit(0)
 
     test_file_name = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
@@ -347,12 +362,14 @@ if __name__ == "__main__":
         sf.write(test_file, y, sr)
         print(f"Generated synthetic file at {test_file}")
         
-    run_benchmark_suite(test_file, effect_mode=args.effect)
+    run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits)
 
     # --- Second file: longer guitar riff (53 s) ---
     test_file_2_name = "../raw_sound_files/romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav"
     test_file_2 = os.path.join(project_root, test_file_2_name)
     if os.path.exists(test_file_2):
-        run_benchmark_suite(test_file_2, effect_mode=args.effect)
+        run_benchmark_suite(test_file_2, effect_mode=args.effect, quant_bits=args.quant_bits)
     else:
         print(f"Skipping second benchmark — file not found: {test_file_2}")
+
+        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits)

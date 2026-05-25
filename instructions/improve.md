@@ -2,6 +2,8 @@ This is a remarkably solid implementation. You successfully translated the theor
 
 However, there are a few architectural tweaks that will stabilize your training and speed up convergence, as well as a specific composite loss function you will need to capture the exact "sound" of a flanger.
 
+For the distortion TCN, the same stability idea now appears as a Brevitas-based quantized model with a dry residual anchor at the output. That gives the retrained network a stable dry reference while you move from 16-bit to 8-bit and 4-bit targets.
+
 Here is how you can improve both.
 
 ---
@@ -18,6 +20,8 @@ You are currently using an LSTM to track the LFO. A Gated Recurrent Unit (GRU) p
 **Initialize the Final Layer to Zero**
 Because you have a residual connection at the very end (`out + residual_input`), your network should ideally start its training life doing absolutely nothing—just passing the dry audio through. If the network starts by outputting randomized noise, it has to spend the first few dozen epochs just learning how to be quiet.
 * *How to fix:* Initialize the weights and biases of `self.out_proj` to exactly zero.
+
+For the current distortion TCN, the same idea is used as a **dry residual anchor**: the learned output is added back to the dry input with a trainable gain. This keeps polarity and level stable during quantized retraining.
 
 Here is what the improved `TCNResidualBlock` looks like:
 
@@ -80,6 +84,8 @@ The implemented loss is:
 $$Loss = \lambda_{L1} \| x - \hat{x} \|_1 + \frac{1}{M} \sum_{i=1}^{M} (L_{sc}^{(i)} + L_{mag}^{(i)})$$
 
 The code uses the `auraloss` library for the multi-resolution STFT component when it is available, and falls back to an internal MR-STFT implementation otherwise. The first 10% of each chunk is masked out so the recurrent state has a brief warm-up period before the loss is applied.
+
+For the distortion TCN, the same L1 + MR-STFT structure still works well, but the dry residual anchor helps the network keep the overall waveform centered so quantization does not erase the negative swing.
 
 For a neural audio effect like a flanger, **training on small-to-medium chunks is absolutely the way to go.** Attempting to process full audio files in a single pass is mathematically impractical. Even just one minute of audio at 44.1kHz contains 2,646,000 sequential samples. Feeding that into your TCN and GRU all at once would instantly exceed the VRAM of almost any modern GPU and cause backpropagation to completely fail.
 

@@ -3,16 +3,20 @@ name = "python-code"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "auraloss>=0.4.0",
     "librosa>=0.11.0",
     "matplotlib>=3.10.7",
-    "numpy>=2.3.5",
+    "numpy>=1.26.4,<2",
+    "onnx>=1.18.0",
+    "onnxruntime>=1.19.0",
+    "brevitas>=0.12.1",
+    "torchao>=0.10.0",
     "torch>=2.10.0",
     "torchvision>=0.25.0",
     "torchaudio>=2.10.0",
     "scipy>=1.10.0",
-    "pandas>=3.0.0",
+    "pandas>=2.2.3,<3",
     "soundfile>=0.12.1",
 ]

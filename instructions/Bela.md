@@ -7,6 +7,19 @@ Implementing the distortion effect on the Bela platform is an excellent choice. 
     - `TCN` for distortion
     - `CRNN` for flanger
 - `tests/phase1_benchmark.py` supports `--effect flange|distortion` to keep hardware and software comparisons aligned.
+- The distortion TCN is now trained as a Brevitas-based quantized model so it can be exported in 16/8/4-bit variants for embedded targets.
+
+## Quantized Distortion TCN
+
+The distortion model is the best bridge to Bela because it is deliberately quantized during training instead of being quantized only after the fact.
+
+Recommended flow:
+
+1. Train the Brevitas TCN at 16-bit first and verify the sound against the DSP target.
+2. Reuse the same model shape at 8-bit once the 16-bit version is stable.
+3. Try 4-bit only after the lower-bit export is validated on PC.
+
+The TCN includes a dry residual anchor at the output. That keeps the waveform polarity and overall level anchored to the input, which makes the model less likely to drift when quantization is introduced.
 
 Here is the step-by-step implementation plan for your **Bela Neural Distortion**.
 
@@ -37,8 +50,9 @@ You need to "capture" the sound of a distortion pedal.
       * Record the output.
       * You now have pairs of `input.wav` and `target.wav`.
 2.  **Train in Python:**
-    * Use PyTorch to train a small **CRNN** (or GRU/LSTM baseline for comparison) to predict the *target* from the *input*.
-      * Export the trained weights to a JSON file (RTNeural has a script for this).
+        * Use PyTorch/Brevitas to train a small **quantized TCN** to predict the *target* from the *input*.
+            * Start with 16-bit, then move to 8-bit and 4-bit if the quality remains acceptable.
+            * Export the trained weights/scales into the hardware format required by your Bela flow.
 
 #### Step B: The C++ Code (on Bela)
 
@@ -82,7 +96,7 @@ void render(BelaContext *context, void *userData) {
 Bela runs on an ARM Cortex-A8. To make the NN run without "clicks" (xruns):
 
 1.  **Use NEON Instructions:** RTNeural can use the NEON SIMD unit on the BeagleBone. Make sure to enable this flag in the Makefile or compiler settings.
-2.  **Keep it Small:** Start with a very small network (e.g., a standard MLP with 16 neurons). If the CPU usage (checked in the IDE) is < 40%, you can upgrade to a CRNN or GRU/LSTM for better sound.
+2.  **Keep it Small:** Start with the quantized TCN that already works on PC. If the CPU usage (checked in the IDE) is < 40%, you can increase channel count or move to a slightly wider quantized TCN before adding more complexity.
 
 ### 4\. What to show in the Mid-Term Presentation (12.4.2026)
 

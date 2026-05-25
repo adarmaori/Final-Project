@@ -1,0 +1,33 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-05-25 11:36:49
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
+Effect Mode: distortion
+Test Configuration: 10 runs/test, Block Size: 512
+
+Loaded Causal TCN (16-bit): 0.00 MB, 113 params
+Skipping CRNN (Final) (Inactive/Placeholder)
+Skipping LSTM (Final) (Inactive/Placeholder)
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
+DSP Match            |     5.34ms | 0.0010   | 0.00e+00   |   0.00%   | 1.0x
+DSP RT               |     4.94ms | 0.0009   | 3.99e-17   |   0.00%   | 0.93x slower
+Causal TCN (16-bit)  |    18.80ms | 0.0035   | 4.69e-02   |  78.00%   | 3.52x slower
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | Causal TCN (16-bit)
+1.0        | 0.0015          | 0.0008          | 0.0034          |
+5.0        | 0.0012          | 0.0010          | 0.0035          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   0.2577 ms |   0.6748 ms |   2.22% (P99: 0.45ms)
+DSP RT               |   0.0312 ms |   0.0587 ms |   0.27% (P99: 0.05ms)
+Causal TCN (16-bit)  |   0.5244 ms |   2.4765 ms |   4.52% (P99: 0.88ms)

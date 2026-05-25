@@ -1,6 +1,15 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.utils.parametrizations import weight_norm
+
+try:
+    import brevitas.nn as qnn
+except ImportError as exc:  # pragma: no cover - dependency issue should fail loudly
+    qnn = None
+    _BREVITAS_IMPORT_ERROR = exc
+else:
+    _BREVITAS_IMPORT_ERROR = None
 
 class Chomp1d(nn.Module):
     """
@@ -40,6 +49,66 @@ class SimpleTCN(nn.Module):
         
         x = self.conv2(x)
         x = self.chomp2(x)
+        return x
+
+
+class BrevitasQuantizedSimpleTCN(nn.Module):
+    """Brevitas-based quantized TCN for 16/8/4-bit training and export."""
+
+    def __init__(self, input_channels=1, output_channels=1, kernel_size=3, dilation=1, quant_bits=16):
+        super().__init__()
+        if qnn is None:
+            raise ImportError("brevitas is required for BrevitasQuantizedSimpleTCN") from _BREVITAS_IMPORT_ERROR
+
+        if quant_bits < 2:
+            raise ValueError("quant_bits must be >= 2")
+
+        padding = (kernel_size - 1) * dilation
+        self.quant_bits = quant_bits
+
+        self.input_quant = qnn.QuantIdentity(bit_width=quant_bits)
+        self.residual = input_channels == output_channels
+        self.conv1 = qnn.QuantConv1d(
+            input_channels,
+            16,
+            kernel_size=kernel_size,
+            dilation=dilation,
+            padding=padding,
+            bias=True,
+            weight_bit_width=quant_bits,
+        )
+        self.chomp1 = Chomp1d(padding)
+        self.relu = qnn.QuantReLU(bit_width=quant_bits)
+        self.conv2 = qnn.QuantConv1d(
+            16,
+            output_channels,
+            kernel_size=kernel_size,
+            dilation=dilation,
+            padding=padding,
+            bias=True,
+            weight_bit_width=quant_bits,
+        )
+        self.chomp2 = Chomp1d(padding)
+        self.output_quant = qnn.QuantIdentity(bit_width=quant_bits)
+        self.output_gain = nn.Parameter(torch.tensor(1.0))
+
+    def forward(self, x):
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+
+        residual = x if self.residual else None
+
+        x = self.input_quant(x)
+        x = self.conv1(x)
+        x = self.chomp1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.chomp2(x)
+        x = self.output_quant(x)
+
+        if residual is not None:
+            x = x + self.output_gain * residual
+
         return x
 
 class SimpleLSTM(nn.Module):

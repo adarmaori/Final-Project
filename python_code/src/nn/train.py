@@ -15,7 +15,7 @@ except ImportError:
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.nn.architecture import SimpleTCN, AudioLSTM, FlangerCRNN
+from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN
 from src.nn.dataset import AudioEffectDataset
 
 
@@ -106,6 +106,8 @@ def _build_model(args):
         )
     elif args.model_type == "crnn":
         return FlangerCRNN()
+    elif args.quant_bits > 0:
+        return BrevitasQuantizedSimpleTCN(quant_bits=args.quant_bits)
     return SimpleTCN()
 
 def train(args):
@@ -152,6 +154,8 @@ def train(args):
         f"Model '{args.model_type}' initialized. "
         f"Train size: {len(train_dataset)}, Val size: {len(val_dataset)}"
     )
+    if args.quant_bits > 0:
+        print(f"Quantized TCN enabled: {args.quant_bits}-bit Brevitas quantization")
     
     # 4. Loop
     for epoch in range(args.epochs):
@@ -201,12 +205,14 @@ def train(args):
         
         # Save Checkpoint
         if (epoch + 1) % args.save_interval == 0:
-            ckpt_path = os.path.join(args.checkpoint_dir, f"{args.model_type}_epoch_{epoch+1}.pt")
+            model_tag = f"{args.model_type}_q{args.quant_bits}" if args.quant_bits > 0 and args.model_type == "tcn" else args.model_type
+            ckpt_path = os.path.join(args.checkpoint_dir, f"{model_tag}_epoch_{epoch+1}.pt")
             torch.save(model.state_dict(), ckpt_path)
             print(f"Saved checkpoint: {ckpt_path}")
 
     # Final Save
-    final_path = os.path.join(args.checkpoint_dir, f"{args.model_type}_final.pt")
+    model_tag = f"{args.model_type}_q{args.quant_bits}" if args.quant_bits > 0 and args.model_type == "tcn" else args.model_type
+    final_path = os.path.join(args.checkpoint_dir, f"{model_tag}_final.pt")
     torch.save(model.state_dict(), final_path)
     print("Training Complete.")
 
@@ -215,7 +221,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train TCN for Audio Effects")
     parser.add_argument("--data_root", type=str, default="data/datasets", help="Path to dataset root")
     parser.add_argument("--input_subdir", type=str, default="inputs", help="Input folder under data_root")
-    parser.add_argument("--target_subdir", type=str, default="targets", help="Target folder under data_root")
+    parser.add_argument("--target_subdir", type=str, default="targets_distortion", help="Target folder under data_root")
     parser.add_argument("--chunk_size", type=int, default=16384, help="Audio Chunk Size")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
     parser.add_argument("--epochs", type=int, default=50, help="Number of Epochs")
@@ -224,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_dir", type=str, default="models/checkpoints", help="Where to save models")
     parser.add_argument("--save_interval", type=int, default=10, help="Save model every N epochs")
     parser.add_argument("--model_type", type=str, choices=["tcn", "lstm", "crnn"], default="crnn", help="Model architecture")
+    parser.add_argument("--quant_bits", type=int, default=0, help="Enable fake-quantized TCN training at this bit width")
     parser.add_argument("--lstm_hidden_size", type=int, default=64, help="LSTM hidden size")
     parser.add_argument("--lstm_num_layers", type=int, default=2, help="Number of LSTM layers")
     parser.add_argument("--lstm_dropout", type=float, default=0.1, help="LSTM dropout (if num_layers > 1)")

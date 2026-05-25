@@ -24,9 +24,10 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
 *   **Framework:** **PyTorch**.
 *   **Model Architectures:**
     *   **CRNN (active)**: causal residual convolution + GRU recurrence model for learning time-varying flanger response.
-    *   **TCN (supported)**: causal convolution model for direct comparison.
+    *   **TCN (active for distortion)**: a Brevitas-based quantized causal convolution model trained for 16/8/4-bit deployment.
     *   *Input/Output:* both models consume chunked mono audio and produce chunked mono targets.
 *   **Training Loop:** Implemented with split validation, L1 + MR-STFT loss, warm-up masking, and automatic checkpointing.
+*   **Quantization Strategy:** Use Brevitas QAT for the distortion TCN so the same architecture can be trained and exported at 16-bit, 8-bit, and 4-bit. The TCN output includes a dry residual anchor to preserve polarity and level during retraining.
 *   **CUDA Usage:**
     *   Training is expected to use GPU when CUDA-enabled PyTorch is installed in the active `uv` environment.
     *   Quick verification:
@@ -50,6 +51,9 @@ Before tackling real-time streams, build a foundation that processes `.wav` file
         2.  **Asymmetry**: Adds a DC bias (e.g., 0.3-0.4) to create even-order harmonics (warmth).
         3.  **Soft Clip**: Uses `tanh` to round off peaks.
         4.  **Tone Stack**: A 4kHz Low-Pass Filter (Butterworth) to remove harsh high-frequency aliasing/fizz.
+
+*   **TCN Improvement for Quantized Training:**
+    The distortion TCN now uses a dry residual anchor (`y = f(x) + g \cdot x`) so the retrained network keeps the input polarity and overall level stable. This is especially important once the model is quantized, because low-bit activations can otherwise bias the waveform or flatten the negative swing.
 
 #### **3. Real-Time Audio Engine (Planned for Phase 3)**
 
@@ -75,7 +79,9 @@ Current benchmark defaults compare:
 * DSP RT (stateful real-time flanger)
 * One NN checkpoint selected by effect mode:
     * `--effect flange` => `crnn_final.pt`
-    * `--effect distortion` => `tcn_final.pt`
+    * `--effect distortion` => `tcn_q16_final.pt` (or the matching quantized checkpoint for the chosen bit width)
+
+For the distortion track, the preferred retraining order is 16-bit first, then 8-bit, then 4-bit.
 
 Recommended benchmark invocation:
 ```bash
