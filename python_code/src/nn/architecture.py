@@ -53,9 +53,19 @@ class SimpleTCN(nn.Module):
 
 
 class BrevitasQuantizedSimpleTCN(nn.Module):
-    """Brevitas-based quantized TCN for 16/8/4-bit training and export."""
+    """Brevitas-based quantized TCN for 16/8/4-bit training and export.
+    
+    Args:
+        input_channels: Input channel count (default 1).
+        output_channels: Output channel count (default 1).
+        kernel_size: Conv kernel size (default 3).
+        dilation: Conv dilation (default 1).
+        quant_bits: Weight quantization bit-width (default 16). 
+                    When quant_bits=4, activations use 8-bit (mixed precision) for stability.
+        hidden_channels: Number of hidden channels in the first/second convs (default 32).
+    """
 
-    def __init__(self, input_channels=1, output_channels=1, kernel_size=3, dilation=1, quant_bits=16):
+    def __init__(self, input_channels=1, output_channels=1, kernel_size=3, dilation=1, quant_bits=16, hidden_channels=32):
         super().__init__()
         if qnn is None:
             raise ImportError("brevitas is required for BrevitasQuantizedSimpleTCN") from _BREVITAS_IMPORT_ERROR
@@ -65,12 +75,16 @@ class BrevitasQuantizedSimpleTCN(nn.Module):
 
         padding = (kernel_size - 1) * dilation
         self.quant_bits = quant_bits
+        self.hidden_channels = hidden_channels
+        
+        # Mixed precision for 4-bit: keep activations at 8-bit for stability
+        act_bit_width = 8 if quant_bits == 4 else quant_bits
 
-        self.input_quant = qnn.QuantIdentity(bit_width=quant_bits)
+        self.input_quant = qnn.QuantIdentity(bit_width=act_bit_width)
         self.residual = input_channels == output_channels
         self.conv1 = qnn.QuantConv1d(
             input_channels,
-            16,
+            hidden_channels,
             kernel_size=kernel_size,
             dilation=dilation,
             padding=padding,
@@ -78,9 +92,9 @@ class BrevitasQuantizedSimpleTCN(nn.Module):
             weight_bit_width=quant_bits,
         )
         self.chomp1 = Chomp1d(padding)
-        self.relu = qnn.QuantReLU(bit_width=quant_bits)
+        self.relu = qnn.QuantReLU(bit_width=act_bit_width)
         self.conv2 = qnn.QuantConv1d(
-            16,
+            hidden_channels,
             output_channels,
             kernel_size=kernel_size,
             dilation=dilation,
@@ -89,7 +103,7 @@ class BrevitasQuantizedSimpleTCN(nn.Module):
             weight_bit_width=quant_bits,
         )
         self.chomp2 = Chomp1d(padding)
-        self.output_quant = qnn.QuantIdentity(bit_width=quant_bits)
+        self.output_quant = qnn.QuantIdentity(bit_width=act_bit_width)
         self.output_gain = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):

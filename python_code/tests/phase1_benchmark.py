@@ -14,25 +14,65 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.dsp.distortion import tube_saturator, RealtimeTubeSaturator
 from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
-def _build_models_config(project_models_dir, effect_mode, quant_bits=0):
-    """Select active models based on requested effect mode."""
+def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_all_quant=False):
+    """Select active models based on requested effect mode.
+
+    If compare_all_quant=True, load all available quantized variants (16, 8, 4-bit)
+    plus the non-quantized (float) TCN. Otherwise, load the single quant_bits
+    variant (or float TCN when quant_bits==0).
+    """
     crnn_model_path = os.path.join(project_models_dir, 'crnn', 'crnn_final.pt')
     if not os.path.exists(crnn_model_path):
         crnn_model_path = os.path.join(project_models_dir, 'crnn_final.pt')
 
-    tcn_model_name = 'tcn_final.pt'
-    if quant_bits > 0:
-        tcn_model_name = f'tcn_q{quant_bits}_final.pt'
+    # Build TCN variants
+    tcn_variants = []
 
-    return [
-        {
-            "name": f"Causal TCN ({quant_bits}-bit)" if quant_bits > 0 else "Causal TCN (Final)",
+    color_map = {16: 'blue', 8: 'cyan', 4: 'green'}
+
+    if compare_all_quant:
+        # Add non-quantized (float) TCN if present
+        float_tcn = os.path.join(project_models_dir, 'tcn_final.pt')
+        tcn_variants.append({
+            "name": "Causal TCN (float)",
+            "path": float_tcn,
+            "model_type": "tcn",
+            "quant_bits": 0,
+            "active": effect_mode == "distortion" and os.path.exists(float_tcn),
+            "color": 'navy'
+        })
+
+        # Load all available quantized variants
+        for bits in [16, 8, 4]:
+            tcn_model_name = f'tcn_q{bits}_final.pt'
+            tcn_path = os.path.join(project_models_dir, tcn_model_name)
+            tcn_variants.append({
+                "name": f"Causal TCN ({bits}-bit)",
+                "path": tcn_path,
+                "model_type": "tcn",
+                "quant_bits": bits,
+                "active": effect_mode == "distortion" and os.path.exists(tcn_path),
+                "color": color_map.get(bits, 'gray')
+            })
+    else:
+        # Load single variant based on quant_bits parameter
+        if quant_bits > 0:
+            tcn_model_name = f'tcn_q{quant_bits}_final.pt'
+            color = color_map.get(quant_bits, 'blue')
+        else:
+            tcn_model_name = 'tcn_final.pt'
+            color = 'navy'
+
+        tcn_variants.append({
+            "name": f"Causal TCN ({quant_bits}-bit)" if quant_bits > 0 else "Causal TCN (float)",
             "path": os.path.join(project_models_dir, tcn_model_name),
             "model_type": "tcn",
             "quant_bits": quant_bits,
-            "active": effect_mode == "distortion",  # Distortion model
-            "color": "blue"
-        },
+            "active": effect_mode == "distortion",
+            "color": color
+        })
+
+    return tcn_variants + [
         {
             "name": "CRNN (Final)",
             "path": crnn_model_path,
@@ -63,7 +103,7 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0):
     ]
 
 
-def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant_bits=0):
+def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant_bits=0, compare_all_quant=False):
     if output_dir is None:
         output_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 
@@ -77,7 +117,7 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
     
     # Define Models to Benchmark (Add new models here)
     project_models_dir = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints')
-    models_config = _build_models_config(project_models_dir, effect_mode, quant_bits=quant_bits)
+    models_config = _build_models_config(project_models_dir, effect_mode, quant_bits=quant_bits, compare_all_quant=compare_all_quant)
 
     # --- 1. Load Data ---
     try:
@@ -335,7 +375,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run phase1 benchmark for flanger/distortion models")
     parser.add_argument("--effect", choices=["flange", "distortion"], default="flange", help="Select effect/model mapping")
     parser.add_argument("--input_file", type=str, default=None, help="Filename in ../raw_sound_files/ to benchmark. If omitted, uses built-in defaults.")
-    parser.add_argument("--quant_bits", type=int, default=0, help="Set to 16 to benchmark the fake-quantized TCN")
+    parser.add_argument("--quant_bits", type=int, default=0, help="Set to 16/8/4 to benchmark a specific quantized TCN")
+    parser.add_argument("--compare_all", action="store_true", help="Load all available quantized variants (16, 8, 4-bit) for comparison in a single run")
     args = parser.parse_args()
 
     # Use a file from the workspace if available
@@ -346,7 +387,7 @@ if __name__ == "__main__":
         if not os.path.exists(test_file):
             print(f"Input file not found: {test_file}")
             sys.exit(1)
-        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits)
+        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
         sys.exit(0)
 
     test_file_name = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
@@ -362,14 +403,14 @@ if __name__ == "__main__":
         sf.write(test_file, y, sr)
         print(f"Generated synthetic file at {test_file}")
         
-    run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits)
+    run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
 
     # --- Second file: longer guitar riff (53 s) ---
     test_file_2_name = "../raw_sound_files/romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav"
     test_file_2 = os.path.join(project_root, test_file_2_name)
     if os.path.exists(test_file_2):
-        run_benchmark_suite(test_file_2, effect_mode=args.effect, quant_bits=args.quant_bits)
+        run_benchmark_suite(test_file_2, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
     else:
         print(f"Skipping second benchmark — file not found: {test_file_2}")
 
-        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits)
+        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)

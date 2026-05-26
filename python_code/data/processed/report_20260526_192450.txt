@@ -1,0 +1,39 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-05-26 19:24:43
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
+Effect Mode: distortion
+Test Configuration: 10 runs/test, Block Size: 512
+
+Loaded Causal TCN (16-bit): 0.02 MB, 117 params
+Loaded Causal TCN (8-bit): 0.02 MB, 117 params
+Loaded Causal TCN (4-bit): 0.02 MB, 117 params
+Skipping CRNN (Final) (Inactive/Placeholder)
+Skipping LSTM (Final) (Inactive/Placeholder)
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
+DSP Match            |     5.67ms | 0.0011   | 0.00e+00   |   0.00%   | 1.0x
+DSP RT               |     5.32ms | 0.0010   | 2.38e-16   |   0.00%   | 0.94x slower | polarity mse: 2.38e-16 (y)
+Causal TCN (16-bit)  |    35.04ms | 0.0066   | 6.16e-02   |  15.81%   | 6.18x slower | polarity mse: 6.16e-02 (y)
+Causal TCN (8-bit)   |    28.02ms | 0.0053   | 5.67e-02   |  14.55%   | 4.94x slower | polarity mse: 5.67e-02 (y)
+Causal TCN (4-bit)   |    27.62ms | 0.0052   | 1.86e-01   |  47.79%   | 4.87x slower | polarity mse: 1.86e-01 (y)
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | Causal TCN (16-bit) | Causal TCN (8-bit) | Causal TCN (4-bit)
+1.0        | 0.0016          | 0.0010          | 0.0104          | 0.0172          | 0.0772          |
+5.0        | 0.0016          | 0.0013          | 0.0073          | 0.0081          | 0.0087          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   0.3376 ms |   1.1805 ms |   2.91% (P99: 0.69ms)
+DSP RT               |   0.0313 ms |   0.1351 ms |   0.27% (P99: 0.06ms)
+Causal TCN (16-bit)  |   3.3433 ms |  13.6837 ms |  28.80% (P99: 10.78ms)
+Causal TCN (8-bit)   |   2.9407 ms |  41.7532 ms |  25.33% (P99: 5.75ms)
+Causal TCN (4-bit)   |   2.6963 ms |   3.7378 ms |  23.22% (P99: 3.42ms)

@@ -68,7 +68,11 @@ class NNWrapper:
                 # Simplified loading for FlangerCRNN
                 self.model = FlangerCRNN()
             elif model_type == 'tcn' and quant_bits > 0:
-                self.model = BrevitasQuantizedSimpleTCN(quant_bits=quant_bits)
+                # Infer hidden_channels from state_dict (conv1 output channels)
+                hidden_channels = 32  # default
+                if 'conv1.weight' in state_dict:
+                    hidden_channels = state_dict['conv1.weight'].shape[0]
+                self.model = BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=hidden_channels)
             else:
                 self.model = SimpleTCN()
 
@@ -83,7 +87,7 @@ class NNWrapper:
                 elif model_type == 'crnn':
                     model_class = FlangerCRNN
                 elif model_type == 'tcn' and quant_bits > 0:
-                    model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits)
+                    model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=32)
                 else:
                     model_class = SimpleTCN
             self.model = model_class()

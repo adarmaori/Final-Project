@@ -1,0 +1,42 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-05-26 19:52:59
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
+Effect Mode: distortion
+Test Configuration: 10 runs/test, Block Size: 512
+
+Loaded Causal TCN (float): 0.00 MB, 113 params
+Loaded Causal TCN (16-bit): 0.02 MB, 117 params
+Loaded Causal TCN (8-bit): 0.02 MB, 117 params
+Loaded Causal TCN (4-bit): 0.02 MB, 229 params
+Skipping CRNN (Final) (Inactive/Placeholder)
+Skipping LSTM (Final) (Inactive/Placeholder)
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
+DSP Match            |     6.31ms | 0.0012   | 0.00e+00   |   0.00%   | 1.0x
+DSP RT               |     5.92ms | 0.0011   | 2.38e-16   |   0.00%   | 0.94x slower | polarity mse: 2.38e-16 (y)
+Causal TCN (float)   |    10.90ms | 0.0020   | 5.81e-02   |  14.91%   | 1.73x slower | polarity mse: 5.81e-02 (y)
+Causal TCN (16-bit)  |    32.20ms | 0.0060   | 6.16e-02   |  15.81%   | 5.11x slower | polarity mse: 6.16e-02 (y)
+Causal TCN (8-bit)   |    29.32ms | 0.0055   | 5.67e-02   |  14.55%   | 4.65x slower | polarity mse: 5.67e-02 (y)
+Causal TCN (4-bit)   |    56.76ms | 0.0106   | 5.77e-02   |  14.81%   | 9.00x slower | polarity mse: 5.77e-02 (y)
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | Causal TCN (float) | Causal TCN (16-bit) | Causal TCN (8-bit) | Causal TCN (4-bit)
+1.0        | 0.0017          | 0.0010          | 0.0028          | 0.0089          | 0.0098          | 0.0136          |
+5.0        | 0.0015          | 0.0014          | 0.0021          | 0.0058          | 0.0057          | 0.0106          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   0.4127 ms |   1.4608 ms |   3.55% (P99: 0.83ms)
+DSP RT               |   0.0292 ms |   0.0743 ms |   0.25% (P99: 0.06ms)
+Causal TCN (float)   |   0.2007 ms |   1.8134 ms |   1.73% (P99: 0.46ms)
+Causal TCN (16-bit)  |   3.1452 ms |   5.7748 ms |  27.09% (P99: 4.74ms)
+Causal TCN (8-bit)   |   2.7020 ms |   4.9823 ms |  23.27% (P99: 4.69ms)
+Causal TCN (4-bit)   |   2.5231 ms |   4.9799 ms |  21.73% (P99: 3.43ms)

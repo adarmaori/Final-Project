@@ -107,7 +107,7 @@ def _build_model(args):
     elif args.model_type == "crnn":
         return FlangerCRNN()
     elif args.quant_bits > 0:
-        return BrevitasQuantizedSimpleTCN(quant_bits=args.quant_bits)
+        return BrevitasQuantizedSimpleTCN(quant_bits=args.quant_bits, hidden_channels=args.tcn_hidden_channels)
     return SimpleTCN()
 
 def train(args):
@@ -236,6 +236,7 @@ if __name__ == "__main__":
     parser.add_argument("--lstm_dropout", type=float, default=0.1, help="LSTM dropout (if num_layers > 1)")
     parser.add_argument("--warmup_fraction", type=float, default=0.10, help="Fraction of each chunk ignored at the start of the loss")
     parser.add_argument("--grad_clip_norm", type=float, default=1.0, help="Gradient clipping norm")
+    parser.add_argument("--tcn_hidden_channels", type=int, default=32, help="Number of hidden channels in quantized TCN (default 32)")
 
     args = parser.parse_args()
     
