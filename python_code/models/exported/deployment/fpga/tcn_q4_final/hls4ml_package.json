@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "backend": "Vitis",
+  "io_type": "io_stream",
+  "strategy": "Latency",
+  "part": null,
+  "onnx_model": "models/exported/deployment/fpga/tcn_q4_final/tcn_q4_final.onnx",
+  "hls_config": {
+    "Model": {
+      "Precision": "ap_fixed<10,2>",
+      "ReuseFactor": 1,
+      "Strategy": "Latency",
+      "BramFactor": 1000000000
+    },
+    "LayerName": {
+      "conv1": {
+        "weight": "ap_fixed<4,1>",
+        "bias": "ap_fixed<20,4>",
+        "result": "ap_fixed<10,2>",
+        "accum": "ap_fixed<20,6>"
+      },
+      "conv2": {
+        "weight": "ap_fixed<4,1>",
+        "bias": "ap_fixed<20,4>",
+        "result": "ap_fixed<10,2>",
+        "accum": "ap_fixed<20,6>"
+      }
+    }
+  },
+  "quantization": {
+    "weight_bits": 4,
+    "activation_bits": 8,
+    "accumulator_bits": 20,
+    "accumulator_min_bits": {
+      "conv1": 15,
+      "conv2": 20
+    }
+  }
+}

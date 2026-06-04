@@ -1,0 +1,42 @@
+{
+  "target": "all",
+  "count": 3,
+  "results": [
+    {
+      "checkpoint": "models\\checkpoints\\tcn_q16_final.pt",
+      "quant_bits": 16,
+      "activation_bits": 16,
+      "accumulator_bits": 40,
+      "outputs": {
+        "bela_json": "models\\exported\\deployment\\bela\\tcn_q16_final_bela.json",
+        "fpga_onnx": "models\\exported\\deployment\\fpga\\tcn_q16_final\\tcn_q16_final.onnx",
+        "fpga_hls4ml_package": "models\\exported\\deployment\\fpga\\tcn_q16_final\\hls4ml_package.json",
+        "fpga_hls4ml_runner": "models\\exported\\deployment\\fpga\\tcn_q16_final\\run_hls4ml.py"
+      }
+    },
+    {
+      "checkpoint": "models\\checkpoints\\tcn_q4_final.pt",
+      "quant_bits": 4,
+      "activation_bits": 8,
+      "accumulator_bits": 20,
+      "outputs": {
+        "bela_json": "models\\exported\\deployment\\bela\\tcn_q4_final_bela.json",
+        "fpga_onnx": "models\\exported\\deployment\\fpga\\tcn_q4_final\\tcn_q4_final.onnx",
+        "fpga_hls4ml_package": "models\\exported\\deployment\\fpga\\tcn_q4_final\\hls4ml_package.json",
+        "fpga_hls4ml_runner": "models\\exported\\deployment\\fpga\\tcn_q4_final\\run_hls4ml.py"
+      }
+    },
+    {
+      "checkpoint": "models\\checkpoints\\tcn_q8_final.pt",
+      "quant_bits": 8,
+      "activation_bits": 8,
+      "accumulator_bits": 24,
+      "outputs": {
+        "bela_json": "models\\exported\\deployment\\bela\\tcn_q8_final_bela.json",
+        "fpga_onnx": "models\\exported\\deployment\\fpga\\tcn_q8_final\\tcn_q8_final.onnx",
+        "fpga_hls4ml_package": "models\\exported\\deployment\\fpga\\tcn_q8_final\\hls4ml_package.json",
+        "fpga_hls4ml_runner": "models\\exported\\deployment\\fpga\\tcn_q8_final\\run_hls4ml.py"
+      }
+    }
+  ]
+}
