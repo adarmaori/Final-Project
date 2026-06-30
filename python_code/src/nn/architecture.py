@@ -292,3 +292,161 @@ class FlangerCRNN(nn.Module):
         out = out.transpose(1, 2)                    # (B, output_channels, T)
         
         return out + residual_input # Adding raw residual like AudioLSTM
+
+class STFTUNet(nn.Module):
+    """
+    STFT-Domain 2D U-Net designed for learning time-invariant effects with long tails (Reverb).
+    Converts 1D audio to a 2-channel (Real/Imaginary) Spectrogram, processes it via 2D Convolutions,
+    and returns to the 1D time domain natively.
+    """
+    def __init__(self, n_fft=1024, hop_length=256, win_length=1024):
+        super().__init__()
+        self.n_fft = n_fft
+        self.hop_length = hop_length
+        self.win_length = win_length
+        
+        # Register the window function as a buffer so it moves to GPU automatically
+        self.register_buffer("window", torch.hann_window(win_length))
+
+        # Encoders (Downsampling)
+        # Input shape: (B, 2, F_bins, Time_frames)
+        self.enc1 = self._conv_block(2, 32)
+        self.enc2 = self._conv_block(32, 64)
+        self.enc3 = self._conv_block(64, 128)
+        self.enc4 = self._conv_block(128, 256)
+        
+        # --- NEW: DILATED TEMPORAL BOTTLENECK ---
+        # Expands the receptive field in the Time axis (dim 1 of the 2D spatial plane)
+        # padding=(1, d) ensures the tensor size remains perfectly unchanged.
+        self.bottleneck = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=(3, 3), padding=(1, 1), dilation=(1, 1)),
+            nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, kernel_size=(3, 3), padding=(1, 2), dilation=(1, 2)),
+            nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, kernel_size=(3, 3), padding=(1, 4), dilation=(1, 4)),
+            nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, kernel_size=(3, 3), padding=(1, 8), dilation=(1, 8)),
+            nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, kernel_size=(3, 3), padding=(1, 16), dilation=(1, 16)),
+            nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+        )
+        
+        # Decoders (Upsampling + Skip Connections)
+        self.dec3 = self._upconv_block(256, 128)
+        self.dec2 = self._upconv_block(256, 64)   # Input = 128 (dec3) + 128 (enc3 skip)
+        self.dec1 = self._upconv_block(128, 32)   # Input = 64 (dec2) + 64 (enc2 skip)
+        
+        self.final_deconv = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.final_conv = nn.Conv2d(32, 2, kernel_size=1)
+
+    def _conv_block(self, in_c, out_c):
+        return nn.Sequential(
+            nn.Conv2d(in_c, out_c, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(out_c),
+            nn.LeakyReLU(0.2)
+        )
+
+    def _upconv_block(self, in_c, out_c):
+        return nn.Sequential(
+            nn.ConvTranspose2d(in_c, out_c, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU()
+        )
+        
+    def _match_shape(self, x, target):
+        """Helper to crop padding differences to match shapes for U-Net skip connections."""
+        diffY = x.size(2) - target.size(2)
+        diffX = x.size(3) - target.size(3)
+        
+        if diffY > 0 or diffX > 0:
+            x = x[:, :, :x.size(2)-max(0, diffY), :x.size(3)-max(0, diffX)]
+            
+        if diffY < 0 or diffX < 0:
+            padY = -min(0, diffY)
+            padX = -min(0, diffX)
+            x = F.pad(x, (0, padX, 0, padY))
+            
+        return x
+
+    def forward(self, x):
+        B = x.size(0)
+        T_orig = x.size(-1)
+        
+        # Flatten input to 1D for STFT
+        x_1d = x.view(B, -1)
+        
+        # Compute Complex STFT
+        stft_out = torch.stft(
+            x_1d, 
+            n_fft=self.n_fft, 
+            hop_length=self.hop_length, 
+            win_length=self.win_length, 
+            window=self.window, 
+            return_complex=True, 
+            pad_mode='reflect', 
+            center=True
+        )
+        
+        # Shape: (B, F_bins, Time_frames) -> With n_fft=1024, F_bins is 513
+        # Remove the Nyquist bin so F becomes 512 (allowing clean maxpooling/striding)
+        nyquist_bin = stft_out[:, -1:, :]
+        stft_out = stft_out[:, :-1, :]
+        
+        # Stack Real and Imaginary parts as channels -> Shape: (B, 2, 512, Time_frames)
+        spec = torch.stack([stft_out.real, stft_out.imag], dim=1)
+        
+        # Pad Time dimension to ensure it divides cleanly by 16 (for 4 strided downsamples)
+        pad_t = (16 - (spec.size(-1) % 16)) % 16
+        if pad_t > 0:
+            spec = F.pad(spec, (0, pad_t, 0, 0))
+            
+        # --- Encoder ---
+        e1 = self.enc1(spec)
+        e2 = self.enc2(e1)
+        e3 = self.enc3(e2)
+        e4 = self.enc4(e3)
+        
+        # --- Bottleneck ---
+        b = self.bottleneck(e4)
+        
+        # --- Decoder ---
+        d3 = self.dec3(b)
+        d3 = self._match_shape(d3, e3)
+        d3 = torch.cat([d3, e3], dim=1)
+        
+        d2 = self.dec2(d3)
+        d2 = self._match_shape(d2, e2)
+        d2 = torch.cat([d2, e2], dim=1)
+        
+        d1 = self.dec1(d2)
+        d1 = self._match_shape(d1, e1)
+        d1 = torch.cat([d1, e1], dim=1)
+        
+        out = self.final_deconv(d1)
+        out = self._match_shape(out, spec)
+        out = self.final_conv(out)
+        
+        # Remove time padding if applied
+        if pad_t > 0:
+            out = out[..., :-pad_t]
+            
+        # --- Reconstruct to Complex STFT ---
+        out_complex = torch.complex(out[:, 0], out[:, 1])
+        
+        # Add back a zeroed Nyquist bin to restore F=513
+        zero_nyquist = torch.zeros(B, 1, out_complex.size(-1), device=out_complex.device, dtype=out_complex.dtype)
+        out_complex = torch.cat([out_complex, zero_nyquist], dim=1)
+        
+        # Inverse STFT to generate audio waveform
+        y = torch.istft(
+            out_complex, 
+            n_fft=self.n_fft, 
+            hop_length=self.hop_length,
+            win_length=self.win_length, 
+            window=self.window, 
+            length=T_orig, 
+            center=True
+        )
+        
+        # Restore standard shape: (B, 1, T)
+        return y.view(B, 1, -1)

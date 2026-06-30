@@ -7,70 +7,47 @@ import glob
 
 class AudioEffectDataset(Dataset):
     """
-    Dataset for paired audio files (Input -> Target).
-    Assumes a folder structure:
-        data_root/
-            inputs/
-                file1.wav
-                ...
-            targets/
-                file1.wav  (must match input filename)
-                ...
+    Memory-efficient dataset for paired audio files (Input -> Target).
+    Implements Receptive Field Padding (Context Windows) for time-smeared effects.
     """
     def __init__(
         self,
         data_root,
         sample_rate=44100,
-        chunk_size=2048,
+        chunk_size=65536,
+        context_size=44100,  # Number of samples to look back into the past
         overlap=0.0,
         input_subdir="inputs",
         target_subdir="targets",
     ):
-        """
-        Args:
-            data_root (str): Path to dataset folder containing input/target subfolders.
-            sample_rate (int): Target sample rate.
-            chunk_size (int): Number of samples per training example (sequence length).
-            overlap (float): Overlap between chunks (0.0 to 1.0).
-            input_subdir (str): Input folder name under data_root.
-            target_subdir (str): Target folder name under data_root.
-        """
         self.data_root = data_root
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size
+        self.context_size = context_size
         self.input_dir = os.path.join(data_root, input_subdir)
         self.target_dir = os.path.join(data_root, target_subdir)
         
-        # Verify directories exist
-        if not os.path.exists(self.input_dir) or not os.path.exists(self.target_dir):
-            raise FileNotFoundError(
-                f"Missing dataset folders. Expected '{input_subdir}' and '{target_subdir}' under {data_root}"
-            )
-
-        self.file_list = []
-        input_files = sorted(glob.glob(os.path.join(self.input_dir, "*.wav")))
+        # Keep full tracks in memory (avoids massive chunk duplication)
+        self.audio_data = [] # List of tuples: (x_full, y_full)
+        self.indices = []    # List of tuples: (file_idx, start_idx, end_idx)
         
-        # Pre-calculate chunks to allow random access
-        self.chunks = []
-
-        print(f"Scanning dataset at {data_root}...")
+        input_files = sorted(glob.glob(os.path.join(self.input_dir, "*.wav")))
+        if not input_files:
+            raise FileNotFoundError(f"No WAV files found in {self.input_dir}")
+            
         for in_path in input_files:
             filename = os.path.basename(in_path)
             tgt_path = os.path.join(self.target_dir, filename)
             
             if os.path.exists(tgt_path):
-                # We store file paths and load on demand, or pre-load if small enough.
-                # For simplicity and speed with small datasets, let's pre-load and slice.
-                # For massive datasets, you'd want to lazy-load.
                 self._process_file(in_path, tgt_path)
             else:
                 print(f"Warning: Missing target for {filename}")
 
-        print(f"Dataset loaded: {len(self.chunks)} chunks.")
+        print(f"Dataset loaded: {len(self.indices)} chunks from {len(self.audio_data)} files.")
 
     def _process_file(self, in_path, tgt_path):
         # Load audio
-        # Using librosa for convenience, returns float32 
         x, _ = librosa.load(in_path, sr=self.sample_rate, mono=True)
         y, _ = librosa.load(tgt_path, sr=self.sample_rate, mono=True)
         
@@ -79,27 +56,35 @@ class AudioEffectDataset(Dataset):
         x = x[:min_len]
         y = y[:min_len]
         
-        # Create chunks
-        stride = int(self.chunk_size * (1 - 0.0)) # 0 overlap for now implementation correctness
+        file_idx = len(self.audio_data)
+        self.audio_data.append((x, y))
         
-        # If overlap is needed later: stride = int(self.chunk_size * (1 - self.overlap))
-        
+        stride = int(self.chunk_size * (1 - 0.0)) # 0 overlap for now
         num_chunks = (min_len - self.chunk_size) // stride + 1
         
         for i in range(num_chunks):
             start = i * stride
             end = start + self.chunk_size
-            self.chunks.append((x[start:end], y[start:end]))
+            self.indices.append((file_idx, start, end))
 
     def __len__(self):
-        return len(self.chunks)
+        return len(self.indices)
 
     def __getitem__(self, idx):
-        x, y = self.chunks[idx]
+        file_idx, start, end = self.indices[idx]
+        x_full, y_full = self.audio_data[file_idx]
         
-        # Convert to Tensor and add Channel dimension
-        # Shape: (1, Length)
-        x_tensor = torch.from_numpy(x).float().unsqueeze(0)
-        y_tensor = torch.from_numpy(y).float().unsqueeze(0)
+        # Target is exactly the chunk size
+        y_chunk = y_full[start:end]
         
-        return x_tensor, y_tensor
+        # Input gets prepended with historical context
+        context_start = start - self.context_size
+        if context_start < 0:
+            # If we are at the very beginning of the song, pad with silence
+            pad_len = -context_start
+            x_chunk = np.pad(x_full[0:end], (pad_len, 0), mode='constant')
+        else:
+            # Otherwise, grab the real audio context from the past
+            x_chunk = x_full[context_start:end]
+            
+        return torch.from_numpy(x_chunk).unsqueeze(0), torch.from_numpy(y_chunk).unsqueeze(0)

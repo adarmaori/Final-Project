@@ -12,6 +12,11 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from src.dsp.distortion import tube_saturator
 from src.dsp.flanger import flanger_effect
+from src.dsp.reverb import reverb_effect  
+from src.dsp.wah_wah import wah_effect
+from src.dsp.cab_sim import cab_simulator 
+from src.dsp.exciter import aural_exciter
+
 
 
 def _collect_wav_files(input_dir):
@@ -56,6 +61,42 @@ def _process_with_effect(y, sr, effect, args):
             fs=sr,
         )
 
+    if effect == "wah":
+        return wah_effect(
+            y,
+            freq_min=args.wah_freq_min,
+            freq_max=args.wah_freq_max,
+            q=args.wah_q,
+            attack_ms=args.wah_attack_ms,
+            release_ms=args.wah_release_ms,
+            fs=sr,
+        )
+
+    # Added Reverb Processing Routing
+    if effect == "reverb":
+        return reverb_effect(
+            y,
+            room_size=args.reverb_room_size,
+            wet_level=args.reverb_wet_level,
+            fs=sr,
+        )
+
+    if effect == "cab":
+            return cab_simulator(
+                y,
+                ir_path=args.cab_ir_path,
+                fs=sr,
+            )
+            
+    if effect == "exciter":
+        return aural_exciter(
+            y,
+            drive=args.exciter_drive,
+            mix=args.exciter_mix,
+            cutoff_freq=args.exciter_cutoff,
+            fs=sr,
+        )
+        
     raise ValueError(f"Unsupported effect: {effect}")
 
 
@@ -106,6 +147,7 @@ def generate_targets(input_dir, target_dir, args):
         except Exception as e:
             print(f"Failed to process {filename}: {e}")
 
+
 def _build_arg_parser():
     parser = argparse.ArgumentParser(description="Generate DSP targets from input WAV files.")
 
@@ -122,11 +164,18 @@ def _build_arg_parser():
         help="Output WAV directory. Defaults to data/datasets/targets.",
     )
     parser.add_argument(
-        "--effect",
-        type=str,
-        choices=["tube", "flanger"],
-        default="tube",
-        help="DSP effect to apply.",
+            "--effect",
+            type=str,
+            choices=["tube", "flanger", "wah", "reverb", "cab", "exciter"],
+            default="tube",
+            help="DSP effect to apply.",
+        )
+    
+    parser.add_argument(
+        "--cab_ir_path", 
+        type=str, 
+        default=None, 
+        help="Optional path to a custom .wav Cabinet Impulse Response."
     )
     parser.add_argument(
         "--preview_short_long",
@@ -146,6 +195,22 @@ def _build_arg_parser():
     parser.add_argument("--flanger_ff", type=float, default=0.7, help="Feed-forward coefficient.")
     parser.add_argument("--flanger_fb", type=float, default=0.2, help="Feedback coefficient (-0.9 to 0.9).")
 
+    # Wah-wah parameters
+    parser.add_argument("--wah_freq_min", type=float, default=400.0, help="Minimum frequency (Hz) of wah sweep.")
+    parser.add_argument("--wah_freq_max", type=float, default=2500.0, help="Maximum frequency (Hz) of wah sweep.")
+    parser.add_argument("--wah_q", type=float, default=2.0, help="Quality factor (resonance).")
+    parser.add_argument("--wah_attack_ms", type=float, default=5.0, help="Envelope attack time (ms).")
+    parser.add_argument("--wah_release_ms", type=float, default=100.0, help="Envelope release time (ms).")
+
+    # Reverb parameters (Golden defaults for vintage amp-style guitar spring/room reverb)
+    parser.add_argument("--reverb_room_size", type=float, default=0.82, help="Room size/decay feedback (0.0 to 0.95).")
+    parser.add_argument("--reverb_wet_level", type=float, default=0.30, help="Wet signal mix coefficient (0.0 to 1.0).")
+    
+    # Exciter parameters
+    parser.add_argument("--exciter_drive", type=float, default=3.0, help="Saturation drive for the high-end.")
+    parser.add_argument("--exciter_mix", type=float, default=0.4, help="Wet mix of the generated harmonics.")
+    parser.add_argument("--exciter_cutoff", type=float, default=3000.0, help="High-pass cutoff frequency in Hz.")
+    
     return parser
 
 
@@ -155,8 +220,23 @@ if __name__ == "__main__":
 
     base_dir = os.path.dirname(__file__)
     input_dir = args.input_dir or os.path.join(base_dir, "data", "datasets", "inputs")
-    target_dir = args.target_dir or os.path.join(base_dir, "data", "datasets", "targets")
-
+    
+    # Map effect to target subdirectory
+    if args.target_dir:
+        target_dir = args.target_dir
+    else:
+        if args.effect == "wah":
+            target_dir = os.path.join(base_dir, "data", "datasets", "targets_wah")
+        elif args.effect == "flanger":
+            target_dir = os.path.join(base_dir, "data", "datasets", "targets_flange")
+        elif args.effect == "distortion":
+            target_dir = os.path.join(base_dir, "data", "datasets", "targets_distortion")
+        elif args.effect == "cab":  
+            target_dir = os.path.join(base_dir, "data", "datasets", "targets_cabsim")
+        elif args.effect == "exciter":
+            target_dir = os.path.join(base_dir, "data", "datasets", "targets_exciter")
+        else:
+            target_dir = os.path.join(base_dir, "data", "datasets", "targets_" + args.effect)
     print(f"Input Directory: {input_dir}")
     print(f"Target Directory: {target_dir}")
     print(f"Effect: {args.effect}")

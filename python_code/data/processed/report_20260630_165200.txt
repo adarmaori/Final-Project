@@ -1,0 +1,34 @@
+Phase 1 Detailed Benchmark Report
+==============================
+Date: 2026-06-30 16:51:58
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
+Effect Mode: exciter
+Test Configuration: 10 runs/test, Block Size: 512
+
+Loaded Causal TCN (float): 0.00 MB, 113 params
+Skipping CRNN (Final) (Inactive/Placeholder)
+Skipping LSTM (Final) (Inactive/Placeholder)
+Skipping STFT U-Net (Final) (Inactive/Placeholder)
+Skipping TCN (Small) [Placeholder] (Inactive/Placeholder)
+Skipping Use Optimized ONNX [Placeholder] (Inactive/Placeholder)
+
+Experiment A: Batch Processing Checks
+-------------------------------------
+Model                | Time(ms)   | RTF      | MSE        | ESR        | Speed vs DSP
+DSP Match            |     8.76ms | 0.0016   | 0.00e+00   |   0.00%   | 1.0x
+DSP RT               |     8.00ms | 0.0015   | 6.96e-13   |   0.00%   | 0.91x slower | polarity mse: 6.96e-13 (y)
+Causal TCN (float)   |    16.14ms | 0.0030   | 3.35e-02   | 400.75%   | 1.84x slower | polarity mse: 8.41e-05 (-y)
+
+Experiment B: Scalability (RTF over different durations)
+------------------------------------------------------
+Duration   | DSP Match       | DSP RT          | Causal TCN (float)
+1.0        | 0.0019          | 0.0010          | 0.0029          |
+5.0        | 0.0017          | 0.0017          | 0.0007          |
+
+Experiment C: Simulated Real-Time (Block Size: 512)
+-------------------------------------------------------
+Model                | Avg Latency  | Max Latency  | Processing Load (%) 
+Budget per block: 11.61 ms
+DSP Match            |   0.1965 ms |   0.6585 ms |   1.69% (P99: 0.37ms)
+DSP RT               |   0.0268 ms |   0.0622 ms |   0.23% (P99: 0.05ms)
+Causal TCN (float)   |   0.4287 ms |  13.3068 ms |   3.69% (P99: 0.65ms)

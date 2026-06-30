@@ -1,2 +1,2 @@
-from .architecture import AudioLSTM, BrevitasQuantizedSimpleTCN, FlangerCRNN, SimpleTCN
+from .architecture import AudioLSTM, BrevitasQuantizedSimpleTCN, FlangerCRNN, SimpleTCN, STFTUNet
 

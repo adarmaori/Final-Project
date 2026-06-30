@@ -6,7 +6,8 @@ import os
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN
+# Import STFTUNet along with the existing architectures
+from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN, STFTUNet
 
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
@@ -41,55 +42,45 @@ class RealtimeDSPWrapper:
     def process(self, audio_buffer):
         return self.processor.process(audio_buffer)
 
-    def reset(self):
-        """Reset internal state between unrelated audio streams."""
-        if hasattr(self.processor, 'reset'):
-            self.processor.reset()
 
 class NNWrapper:
-    def __init__(self, model_path=None, model_class=None, model_type='tcn', device='cpu', quant_bits=0):
+    def __init__(self, model_path=None, model_type='tcn', quant_bits=0):
         """
-        Wraps a PyTorch Neural Network.
+        Wraps a neural network model to handle PyTorch tensor execution.
         """
-        self.device = torch.device(device)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_type = model_type
-        self.quant_bits = quant_bits
+        
+        # Instantiate correct model architecture based on string identifier
         if model_path and os.path.exists(model_path):
-            print(f"Loading model from {os.path.basename(model_path)}...")
-            state_dict = torch.load(model_path, map_location=self.device)
-            
             if model_type == 'lstm':
-                hidden_size = state_dict['lstm.weight_ih_l0'].shape[0] // 4
-                num_layers = 1
-                while f'lstm.weight_ih_l{num_layers}' in state_dict:
-                    num_layers += 1
-                self.model = AudioLSTM(hidden_size=hidden_size, num_layers=num_layers)
+                model_class = AudioLSTM
             elif model_type == 'crnn':
-                # Simplified loading for FlangerCRNN
-                self.model = FlangerCRNN()
+                model_class = FlangerCRNN
+            elif model_type == 'unet':
+                model_class = STFTUNet
             elif model_type == 'tcn' and quant_bits > 0:
-                # Infer hidden_channels from state_dict (conv1 output channels)
-                hidden_channels = 32  # default
-                if 'conv1.weight' in state_dict:
-                    hidden_channels = state_dict['conv1.weight'].shape[0]
-                self.model = BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=hidden_channels)
+                model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=32)
             else:
-                self.model = SimpleTCN()
-
-            strict_loading = True
-            load_result = self.model.load_state_dict(state_dict, strict=strict_loading)
-            if load_result.missing_keys or load_result.unexpected_keys:
-                print(f"Quantized load summary: missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}")
+                model_class = SimpleTCN
+                
+            self.model = model_class()
+            
+            # Load trained weights matching the architecture
+            state_dict = torch.load(model_path, map_location=self.device)
+            self.model.load_state_dict(state_dict)
+            print(f"Loaded {model_type} model from {model_path} onto {self.device}")
         else:
-            if model_class is None:
-                if model_type == 'lstm':
-                    model_class = AudioLSTM
-                elif model_type == 'crnn':
-                    model_class = FlangerCRNN
-                elif model_type == 'tcn' and quant_bits > 0:
-                    model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=32)
-                else:
-                    model_class = SimpleTCN
+            if model_type == 'lstm':
+                model_class = AudioLSTM
+            elif model_type == 'crnn':
+                model_class = FlangerCRNN
+            elif model_type == 'unet':
+                model_class = STFTUNet
+            elif model_type == 'tcn' and quant_bits > 0:
+                model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=32)
+            else:
+                model_class = SimpleTCN
             self.model = model_class()
             if model_path:
                 print(f"Warning: Model path {model_path} not found. Using random weights.")
@@ -105,16 +96,34 @@ class NNWrapper:
     def process(self, audio_buffer):
         """
         Process a buffer of audio. 
-        Note: This naive implementation assumes the buffer is the whole context.
-        For real-time streaming, a ring buffer is needed for TCNs.
         """
-        # Prepare input: (1, 1, Length)
+        # Save original length to trim off any real-time padding later
+        orig_len = len(audio_buffer)
+        
+        # For U-Net real-time block simulation: if the block is smaller than 2048 samples,
+        # pad it with zeros so torch.stft doesn't crash on reflection padding sizes.
+        if self.model_type == 'unet' and orig_len < 2048:
+            # Pad up to 2048 samples
+            pad_amount = 2048 - orig_len
+            audio_buffer = np.pad(audio_buffer, (0, pad_amount), mode='constant')
+
+        # Prepare input tensor shape.
         x_tensor = torch.from_numpy(audio_buffer).float().unsqueeze(0).unsqueeze(0).to(self.device)
         
+        # Strip additional dimensions for models like U-Net that expect (B, T)
+        if self.model_type == 'unet':
+            x_tensor = x_tensor.squeeze(1) 
+
         with torch.no_grad():
             y_tensor = self.model(x_tensor)
             if isinstance(y_tensor, tuple):
                 y_tensor = y_tensor[0]
+                
+        # Send tensor back to CPU and convert to a flat 1D numpy array
+        out_array = y_tensor.cpu().numpy().squeeze()
         
-        # Output: (Length,)
-        return y_tensor.squeeze().cpu().numpy()
+        # Trim off the trailing zero-padded values if we padded earlier
+        if self.model_type == 'unet' and orig_len < 2048:
+            out_array = out_array[:orig_len]
+            
+        return out_array

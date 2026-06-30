@@ -7,11 +7,14 @@ import torch
 import matplotlib.pyplot as plt
 import os
 import sys
-
+import scipy.signal as signal
 # Add project root to path to allow importing from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.dsp.distortion import tube_saturator, RealtimeTubeSaturator
+from src.dsp.flanger import flanger_effect, RealtimeFlanger
+from src.dsp.wah_wah import wah_effect, RealtimeWahWah
+from src.dsp.exciter import aural_exciter
 from src.engine.wrapper import NNWrapper, DSPWrapper, RealtimeDSPWrapper
 
 def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_all_quant=False):
@@ -21,9 +24,15 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
     plus the non-quantized (float) TCN. Otherwise, load the single quant_bits
     variant (or float TCN when quant_bits==0).
     """
-    crnn_model_path = os.path.join(project_models_dir, 'crnn', 'crnn_final.pt')
+    # Effect-specific model naming
+    if effect_mode == "wah":
+        crnn_model_name = 'crnn_wah_final.pt'
+    else:
+        crnn_model_name = 'crnn_final.pt'
+    
+    crnn_model_path = os.path.join(project_models_dir, 'crnn', crnn_model_name)
     if not os.path.exists(crnn_model_path):
-        crnn_model_path = os.path.join(project_models_dir, 'crnn_final.pt')
+        crnn_model_path = os.path.join(project_models_dir, crnn_model_name)
 
     # Build TCN variants
     tcn_variants = []
@@ -38,7 +47,7 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
             "path": float_tcn,
             "model_type": "tcn",
             "quant_bits": 0,
-            "active": effect_mode == "distortion" and os.path.exists(float_tcn),
+            "active": effect_mode in ("distortion", "exciter") and os.path.exists(float_tcn),
             "color": 'navy'
         })
 
@@ -51,7 +60,7 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
                 "path": tcn_path,
                 "model_type": "tcn",
                 "quant_bits": bits,
-                "active": effect_mode == "distortion" and os.path.exists(tcn_path),
+                "active": effect_mode in ("distortion", "exciter") and os.path.exists(tcn_path),
                 "color": color_map.get(bits, 'gray')
             })
     else:
@@ -68,7 +77,7 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
             "path": os.path.join(project_models_dir, tcn_model_name),
             "model_type": "tcn",
             "quant_bits": quant_bits,
-            "active": effect_mode == "distortion",
+            "active": effect_mode in ("distortion", "exciter") and os.path.exists(os.path.join(project_models_dir, tcn_model_name)),
             "color": color
         })
 
@@ -77,15 +86,22 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
             "name": "CRNN (Final)",
             "path": crnn_model_path,
             "model_type": "crnn",
-            "active": effect_mode == "flange",  # Flanger model
+            "active": effect_mode in ("flange", "wah"),  # Flanger and Wah models
             "color": "cyan"
         },
         {
             "name": "LSTM (Final)",
             "path": os.path.join(project_models_dir, 'lstm_final.pt'),
             "model_type": "lstm",
-            "active": effect_mode == "flange",  # Flanger model
+            "active": effect_mode in ("flange", "wah"),  # Flanger and Wah models
             "color": "purple"
+        },
+        {
+            "name": "STFT U-Net (Final)",
+            "path": os.path.join(project_models_dir, 'unet_final.pt'),
+            "model_type": "unet",
+            "active": effect_mode == "reverb",
+            "color": "magenta"
         },
         {
             "name": "TCN (Small) [Placeholder]",
@@ -139,14 +155,63 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
     # --- 2. Initialize Models ---
     wrappers = {}
     
-    # 2a. DSP Baseline (offline / batch)
-    dsp_wrapper = DSPWrapper(tube_saturator, drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
-    wrappers["DSP Match"] = dsp_wrapper
-    
-    # 2b. Real-time DSP (stateful, block-by-block)
-    rt_distortion = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
-    rt_dsp_wrapper = RealtimeDSPWrapper(rt_distortion)
-    wrappers["DSP RT"] = rt_dsp_wrapper
+    # 2a. DSP Baseline (offline / batch) - Effect specific
+    if effect_mode == "distortion":
+        dsp_wrapper = DSPWrapper(tube_saturator, drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
+        wrappers["DSP Match"] = dsp_wrapper
+        rt_distortion = RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
+        rt_dsp_wrapper = RealtimeDSPWrapper(rt_distortion)
+        wrappers["DSP RT"] = rt_dsp_wrapper
+    elif effect_mode == "flange":
+        dsp_wrapper = DSPWrapper(flanger_effect, rate=0.5, center_delay=2.5, ff=0.7, fb=0.2, fs=int(sr))
+        wrappers["DSP Match"] = dsp_wrapper
+        rt_flanger = RealtimeFlanger(rate=0.5, center_delay=2.5, ff=0.7, fb=0.2, fs=int(sr))
+        rt_dsp_wrapper = RealtimeDSPWrapper(rt_flanger)
+        wrappers["DSP RT"] = rt_dsp_wrapper
+    elif effect_mode == "wah":
+        dsp_wrapper = DSPWrapper(wah_effect, freq_min=400.0, freq_max=2500.0, q=2.0, 
+                                attack_ms=5.0, release_ms=100.0, fs=int(sr))
+        wrappers["DSP Match"] = dsp_wrapper
+        rt_wah = RealtimeWahWah(freq_min=400.0, freq_max=2500.0, q=2.0, 
+                               attack_ms=5.0, release_ms=100.0, fs=int(sr))
+        rt_dsp_wrapper = RealtimeDSPWrapper(rt_wah)
+        wrappers["DSP RT"] = rt_dsp_wrapper
+    elif effect_mode == "reverb":
+        # Simple feedback comb filter setup acting as a lightweight reference loop for timing checks
+        def simple_reverb_dsp(x, fs=44100):
+            out = x.copy()
+            delay_samples = int(0.04 * fs)
+            feedback = 0.5
+            for i in range(delay_samples, len(x)):
+                out[i] += feedback * out[i - delay_samples]
+            return out
+        
+    elif effect_mode == "exciter":
+        # 1. Offline/Batch Target Match
+        dsp_wrapper = DSPWrapper(aural_exciter, drive=4.0, mix=0.50, cutoff_freq=4000.0, fs=int(sr))
+        wrappers["DSP Match"] = dsp_wrapper
+        
+        # 2. Real-Time Stateful Block Processing 
+        class RealtimeExciter:
+            def __init__(self, drive=4.0, mix=0.50, cutoff_freq=4000.0, fs=44100):
+                self.drive = drive
+                self.mix = mix
+                nyquist = 0.5 * fs
+                normal_cutoff = cutoff_freq / nyquist
+                self.b, self.a = signal.butter(2, normal_cutoff, btype='high', analog=False)
+                # Initialize state variables for the two sequential high-pass filters
+                self.zi1 = signal.lfilter_zi(self.b, self.a)
+                self.zi2 = signal.lfilter_zi(self.b, self.a)
+                
+            def process(self, block):
+                # Apply filters and maintain block-to-block memory (zi)
+                high_passed, self.zi1 = signal.lfilter(self.b, self.a, block, zi=self.zi1)
+                generated_harmonics = np.tanh(self.drive * high_passed)
+                clean_harmonics, self.zi2 = signal.lfilter(self.b, self.a, generated_harmonics, zi=self.zi2)
+                return block + (self.mix * clean_harmonics)
+                
+        rt_dsp_wrapper = RealtimeDSPWrapper(RealtimeExciter(fs=int(sr)))
+        wrappers["DSP RT"] = rt_dsp_wrapper
     
     # 2c. NN Models
     for cfg in models_config:
@@ -326,14 +391,12 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
 
     # Plot 2: Waveforms (DSP vs NN)
     ax2 = plt.subplot(2, 2, 2)
-    slc = Slice_for_vis = slice(1000, 2000) # Zoom in
+    slc = slice(1000, 2000) # Zoom in
     ax2.plot(y_full[slc], label="Input", alpha=0.5, color='gray')
     ax2.plot(y_dsp_ref[slc], label="DSP Target", color='black', linewidth=1)
     
     for name, wrapper in wrappers.items():
         if name not in ("DSP Match", "DSP RT"):
-            # Quick process to get fresh plot data if needed, or use saved logic? 
-            # We'll just run inference on this slice specifically to be cleaner
             out_slice = wrapper.process(y_full[slc])
             ax2.plot(out_slice, label=f"Output: {name}", linestyle='--')
             
@@ -372,8 +435,8 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
     print(f"Reports saved to {output_dir}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run phase1 benchmark for flanger/distortion models")
-    parser.add_argument("--effect", choices=["flange", "distortion"], default="flange", help="Select effect/model mapping")
+    parser = argparse.ArgumentParser(description="Run phase1 benchmark for flanger/distortion/wah/reverb models")
+    parser.add_argument("--effect", choices=["flange", "distortion", "wah", "reverb", "exciter"], default="flange", help="Select effect/model mapping")
     parser.add_argument("--input_file", type=str, default=None, help="Filename in ../raw_sound_files/ to benchmark. If omitted, uses built-in defaults.")
     parser.add_argument("--quant_bits", type=int, default=0, help="Set to 16/8/4 to benchmark a specific quantized TCN")
     parser.add_argument("--compare_all", action="store_true", help="Load all available quantized variants (16, 8, 4-bit) for comparison in a single run")
@@ -412,5 +475,4 @@ if __name__ == "__main__":
         run_benchmark_suite(test_file_2, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
     else:
         print(f"Skipping second benchmark — file not found: {test_file_2}")
-
         run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
