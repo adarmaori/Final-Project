@@ -12,6 +12,13 @@ from src.nn.architecture import SimpleTCN
 from src.nn.quantization import QuantizationConfig, export_simple_tcn_quantization_artifact, summarize_artifact
 
 
+def _infer_hidden_channels(state_dict):
+    conv1_weight = state_dict.get("conv1.weight")
+    if conv1_weight is None:
+        return 16
+    return int(conv1_weight.shape[0])
+
+
 def _load_calibration_audio(calibration_dir: Path, max_files: int | None = None):
     wav_files = sorted(calibration_dir.glob("*.wav"))
     if max_files is not None:
@@ -27,7 +34,7 @@ def main(args):
         raise FileNotFoundError(f"Model path not found: {args.model_path}")
 
     state_dict = torch.load(args.model_path, map_location="cpu")
-    model = SimpleTCN()
+    model = SimpleTCN(hidden_channels=_infer_hidden_channels(state_dict))
     model.load_state_dict(state_dict)
 
     calibration_dir = Path(args.calibration_dir)

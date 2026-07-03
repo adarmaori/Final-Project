@@ -1,7 +1,7 @@
-"""Quantization helpers for the distortion TCN.
+"""Quantization helpers for the TCN audio effects models.
 
 This module focuses on deployment-friendly fixed-point export for the
-SimpleTCN architecture used by the distortion model.
+SimpleTCN / Brevitas TCN architectures used by distortion and exciter.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .architecture import SimpleTCN
+from .architecture import BrevitasQuantizedSimpleTCN, SimpleTCN
 
 
 @dataclass(frozen=True)
@@ -132,7 +132,7 @@ def _quantize_bias(bias: torch.Tensor, input_scale: float, weight_scales: Sequen
     return torch.tensor(bias_int, dtype=torch.int64), bias_scales, [0] * len(bias_scales)
 
 
-def _collect_simple_tcn_ranges(model: SimpleTCN, calibration_data: Iterable[torch.Tensor | np.ndarray], device: str = "cpu") -> dict[str, dict[str, float]]:
+def _collect_simple_tcn_ranges(model: nn.Module, calibration_data: Iterable[torch.Tensor | np.ndarray], device: str = "cpu") -> dict[str, dict[str, float]]:
     ranges: dict[str, dict[str, float]] = {}
     handles = []
 
@@ -179,7 +179,7 @@ def _build_tensor_quantization(bits: int, stats: dict[str, float], signed: bool)
 
 
 def export_simple_tcn_quantization_artifact(
-    model: SimpleTCN,
+    model: nn.Module,
     calibration_data: Iterable[torch.Tensor | np.ndarray],
     output_path: str | Path | None = None,
     config: QuantizationConfig | None = None,
@@ -191,8 +191,8 @@ def export_simple_tcn_quantization_artifact(
     activations are represented in fixed-point, while accumulators stay wider.
     """
 
-    if not isinstance(model, SimpleTCN):
-        raise TypeError("export_simple_tcn_quantization_artifact only supports SimpleTCN.")
+    if not isinstance(model, (SimpleTCN, BrevitasQuantizedSimpleTCN)):
+        raise TypeError("export_simple_tcn_quantization_artifact only supports SimpleTCN or BrevitasQuantizedSimpleTCN.")
 
     cfg = config or QuantizationConfig(weight_bits=8, activation_bits=8)
     model = model.to(device)

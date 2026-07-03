@@ -9,6 +9,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 # Import STFTUNet along with the existing architectures
 from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN, STFTUNet
 
+
+def _infer_tcn_hidden_channels(state_dict):
+    conv1_weight = state_dict.get('conv1.weight')
+    if conv1_weight is None:
+        return 16
+    return int(conv1_weight.shape[0])
+
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
         """
@@ -53,6 +60,9 @@ class NNWrapper:
         
         # Instantiate correct model architecture based on string identifier
         if model_path and os.path.exists(model_path):
+            state_dict = torch.load(model_path, map_location=self.device)
+            hidden_channels = _infer_tcn_hidden_channels(state_dict) if model_type == 'tcn' else None
+
             if model_type == 'lstm':
                 model_class = AudioLSTM
             elif model_type == 'crnn':
@@ -60,14 +70,13 @@ class NNWrapper:
             elif model_type == 'unet':
                 model_class = STFTUNet
             elif model_type == 'tcn' and quant_bits > 0:
-                model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=32)
+                model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=hidden_channels or 16)
             else:
-                model_class = SimpleTCN
+                model_class = lambda: SimpleTCN(hidden_channels=hidden_channels or 16)
                 
             self.model = model_class()
             
             # Load trained weights matching the architecture
-            state_dict = torch.load(model_path, map_location=self.device)
             self.model.load_state_dict(state_dict)
             print(f"Loaded {model_type} model from {model_path} onto {self.device}")
         else:

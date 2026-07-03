@@ -111,7 +111,7 @@ def _build_model(args):
         return FlangerCRNN()
     elif args.quant_bits > 0:
         return BrevitasQuantizedSimpleTCN(quant_bits=args.quant_bits, hidden_channels=args.tcn_hidden_channels)
-    return SimpleTCN()
+    return SimpleTCN(hidden_channels=args.tcn_hidden_channels)
 
 
 def train(args):

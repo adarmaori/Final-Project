@@ -24,17 +24,17 @@ class Chomp1d(nn.Module):
         return x[:, :, :-self.chomp_size].contiguous()
 
 class SimpleTCN(nn.Module):
-    def __init__(self, input_channels=1, output_channels=1, kernel_size=3, dilation=1):
+    def __init__(self, input_channels=1, output_channels=1, hidden_channels=16, kernel_size=3, dilation=1):
         super(SimpleTCN, self).__init__()
         
         # Causal Padding = (kernel_size - 1) * dilation
         padding = (kernel_size - 1) * dilation
         
-        self.conv1 = nn.Conv1d(input_channels, 16, kernel_size=kernel_size, dilation=dilation, padding=padding)
+        self.conv1 = nn.Conv1d(input_channels, hidden_channels, kernel_size=kernel_size, dilation=dilation, padding=padding)
         self.chomp1 = Chomp1d(padding)
         self.relu = nn.ReLU()
         
-        self.conv2 = nn.Conv1d(16, output_channels, kernel_size=kernel_size, dilation=dilation, padding=padding)
+        self.conv2 = nn.Conv1d(hidden_channels, output_channels, kernel_size=kernel_size, dilation=dilation, padding=padding)
         self.chomp2 = Chomp1d(padding)
 
     def forward(self, x):
