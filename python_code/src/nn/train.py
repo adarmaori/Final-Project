@@ -19,6 +19,29 @@ from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM
 from src.nn.dataset import AudioEffectDataset
 
 
+def _infer_effect_name(target_subdir):
+    normalized = (target_subdir or "").lower()
+    mapping = {
+        "targets_flange": "flange",
+        "targets_flanger": "flange",
+        "targets_distortion": "distortion",
+        "targets_exciter": "exciter",
+        "targets_wah": "wah",
+        "targets_reverb": "reverb",
+    }
+    for key, value in mapping.items():
+        if key in normalized:
+            return value
+    return "reverb"
+
+
+def _checkpoint_stem(args):
+    effect_name = args.effect or _infer_effect_name(args.target_subdir)
+    if args.model_type == "tcn" and args.quant_bits > 0:
+        return f"tcn_{effect_name}_q{args.quant_bits}"
+    return f"{args.model_type}_{effect_name}"
+
+
 def _build_mrstft_loss():
     """Build a reusable multi-resolution STFT loss instance."""
     if auraloss is not None:
@@ -78,22 +101,31 @@ def _build_mrstft_loss():
     return _FallbackMRSTFTLoss()
 
 
-def _audio_training_loss(pred, target, mrstft_loss, alpha=100.0):
+def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0):
     """
-    Combined Spectral and Time-Domain Loss.
-    L1 loss ensures the network learns correct phase/polarity for aligned effects.
+    Tri-Band Audio Loss.
+    1. STFT: Learns the general frequency balance.
+    2. L1 (Macro): Locks the phase of the low and mid frequencies.
+    3. L1 Derivative (Micro): Forces the network to reconstruct high-frequency 
+       transients and fast-moving harmonic slopes.
     """
     pred = pred.squeeze(1)
     target = target.squeeze(1)
 
-    # 1. Spectral Loss (Catches frequency masking and EQ curves)
+    # 1. Spectral Loss
     stft_loss = mrstft_loss(pred.unsqueeze(1), target.unsqueeze(1))
     
-    # 2. Time-Domain Loss (Forces correct polarity and phase alignment)
+    # 2. Standard Time-Domain Loss (Lowered alpha so it doesn't overpower)
     l1_loss = torch.nn.functional.l1_loss(pred, target)
 
-    # Combine them (Alpha multiplier scales L1 to match STFT magnitude)
-    return stft_loss + (alpha * l1_loss)
+    # 3. Derivative / Pre-Emphasis Loss
+    # torch.diff calculates the difference between consecutive samples (the slope)
+    pred_diff = torch.diff(pred, dim=-1)
+    target_diff = torch.diff(target, dim=-1)
+    diff_loss = torch.nn.functional.l1_loss(pred_diff, target_diff)
+
+    # Combine all three
+    return stft_loss + (alpha * l1_loss) + (diff_alpha * diff_loss)
 
 
 def _build_model(args):
@@ -109,9 +141,31 @@ def _build_model(args):
         )
     elif args.model_type == "crnn":
         return FlangerCRNN()
-    elif args.quant_bits > 0:
-        return BrevitasQuantizedSimpleTCN(quant_bits=args.quant_bits, hidden_channels=args.tcn_hidden_channels)
+    elif args.model_type == "tcn":
+        if args.quant_bits > 0:
+            model = BrevitasQuantizedSimpleTCN(
+                weight_bits=args.quant_bits,
+                act_bits=args.quant_bits,
+                hidden_channels=args.tcn_hidden_channels,  # <-- Pass capacity args here
+                num_layers=args.tcn_num_layers,
+                kernel_size=args.tcn_kernel_size
+            )
+        else:
+            model = SimpleTCN(
+                hidden_channels=args.tcn_hidden_channels,
+                num_layers=args.tcn_num_layers,
+                kernel_size=args.tcn_kernel_size
+            ) 
     return SimpleTCN(hidden_channels=args.tcn_hidden_channels)
+
+
+def _build_checkpoint_tag(args):
+    if args.model_type == "tcn":
+        base_name = f"{args.effect}_tcn"
+        if args.quant_bits > 0:
+            base_name = f"{base_name}_q{args.quant_bits}"
+        return base_name
+    return args.model_type
 
 
 def train(args):
@@ -162,10 +216,9 @@ def train(args):
             optimizer.zero_grad()
             outputs = model(inputs)
             
-            # CROP CONTEXT: Remove the context buildup region so outputs perfectly align with targets
             if args.context_size > 0:
                 outputs = outputs[..., args.context_size:]
-                
+            
             loss = _audio_training_loss(outputs, targets, mrstft_loss)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
@@ -194,11 +247,11 @@ def train(args):
         print(f"Epoch [{epoch+1}/{args.epochs}] Train Loss: {avg_train_loss:.6f} | Val Loss: {avg_val_loss:.6f} ({time.time() - start_time:.2f}s)")
         
         if (epoch + 1) % args.save_interval == 0:
-            model_tag = f"{args.model_type}_q{args.quant_bits}" if args.quant_bits > 0 and args.model_type == "tcn" else args.model_type
+            model_tag = _build_checkpoint_tag(args)
             ckpt_path = os.path.join(args.checkpoint_dir, f"{model_tag}_epoch_{epoch+1}.pt")
             torch.save(model.state_dict(), ckpt_path)
 
-    model_tag = f"{args.model_type}_q{args.quant_bits}" if args.quant_bits > 0 and args.model_type == "tcn" else args.model_type
+    model_tag = _build_checkpoint_tag(args)
     final_path = os.path.join(args.checkpoint_dir, f"{model_tag}_final.pt")
     torch.save(model.state_dict(), final_path)
     print("Training Complete.")
@@ -217,6 +270,7 @@ if __name__ == "__main__":
     parser.add_argument("--sample_rate", type=int, default=44100)
     parser.add_argument("--checkpoint_dir", type=str, default="models/checkpoints")
     parser.add_argument("--save_interval", type=int, default=10)
+    parser.add_argument("--effect", type=str, choices=["flange", "distortion", "wah", "reverb", "exciter"], default=None)
     
     parser.add_argument("--model_type", type=str, choices=["tcn", "lstm", "crnn", "unet"], default="unet")
     parser.add_argument("--quant_bits", type=int, default=0)
@@ -224,8 +278,13 @@ if __name__ == "__main__":
     parser.add_argument("--lstm_num_layers", type=int, default=2)
     parser.add_argument("--lstm_dropout", type=float, default=0.1)
     parser.add_argument("--grad_clip_norm", type=float, default=1.0)
-    parser.add_argument("--tcn_hidden_channels", type=int, default=32)
+    # TCN Capacity Arguments
+    parser.add_argument("--tcn_hidden_channels", type=int, default=32, help="Number of filters per TCN layer")
+    parser.add_argument("--tcn_num_layers", type=int, default=8, help="Number of dilated convolutional layers")
+    parser.add_argument("--tcn_kernel_size", type=int, default=15, help="Size of the convolutional kernel")
 
     args = parser.parse_args()
+    if args.effect is None:
+        args.effect = _infer_effect_name(args.target_subdir)
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     train(args)

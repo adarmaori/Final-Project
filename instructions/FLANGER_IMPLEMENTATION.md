@@ -184,7 +184,7 @@ processor.reset()  # Between streams
 
 ### Completed Integrations
 1. **Benchmark integration** in `tests/phase1_benchmark.py`
-   - DSP Match: offline flanger reference
+   - DSP baseline: offline flanger reference
    - DSP RT: stateful real-time flanger
    - Effect mode switch: `--effect flange|distortion`
    - Active mapping:

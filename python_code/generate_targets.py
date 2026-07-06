@@ -184,9 +184,9 @@ def _build_arg_parser():
     )
 
     # Tube saturator parameters
-    parser.add_argument("--tube_drive", type=float, default=100.0)
+    parser.add_argument("--tube_drive", type=float, default=70.0)
     parser.add_argument("--tube_asymmetry", type=float, default=0.4)
-    parser.add_argument("--tube_tone", type=float, default=3000.0)
+    parser.add_argument("--tube_tone", type=float, default=5000.0)
 
     # Flanger parameters
     parser.add_argument("--flanger_rate", type=float, default=0.5, help="LFO rate in Hz.")
@@ -229,7 +229,7 @@ if __name__ == "__main__":
             target_dir = os.path.join(base_dir, "data", "datasets", "targets_wah")
         elif args.effect == "flanger":
             target_dir = os.path.join(base_dir, "data", "datasets", "targets_flange")
-        elif args.effect == "distortion":
+        elif args.effect == "tube":
             target_dir = os.path.join(base_dir, "data", "datasets", "targets_distortion")
         elif args.effect == "cab":  
             target_dir = os.path.join(base_dir, "data", "datasets", "targets_cabsim")

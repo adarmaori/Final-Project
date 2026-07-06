@@ -11,10 +11,22 @@ from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM
 
 
 def _infer_tcn_hidden_channels(state_dict):
+    """
+    Infers the number of hidden channels from the saved PyTorch state dictionary.
+    Supports both legacy TCN architectures (conv1) and new deep sequential TCNs (tcn.0).
+    """
+    # Check for old architecture naming
     conv1_weight = state_dict.get('conv1.weight')
-    if conv1_weight is None:
-        return 16
-    return int(conv1_weight.shape[0])
+    if conv1_weight is not None:
+        return int(conv1_weight.shape[0])
+    
+    # Check for new deep architecture naming
+    tcn_0_weight = state_dict.get('tcn.0.weight')
+    if tcn_0_weight is not None:
+        return int(tcn_0_weight.shape[0])
+        
+    # Default fallback
+    return 16
 
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
@@ -63,6 +75,17 @@ class NNWrapper:
             state_dict = torch.load(model_path, map_location=self.device)
             hidden_channels = _infer_tcn_hidden_channels(state_dict) if model_type == 'tcn' else None
 
+            # --- Smart Checkpoint Detection ---
+            if model_type == 'tcn' and quant_bits > 0:
+                # If there are no Brevitas 'quant' keys in the saved weights, it's a float model
+                is_quant_checkpoint = any("quant" in k for k in state_dict.keys())
+                if not is_quant_checkpoint:
+                    print(f"Warning: {model_path} is a floating-point checkpoint. Auto-switching to Float TCN.")
+                    quant_bits = 0  # Force fallback to SimpleTCN
+            # ----------------------------------
+
+            if model_type == 'lstm':
+                model_class = AudioLSTM
             if model_type == 'lstm':
                 model_class = AudioLSTM
             elif model_type == 'crnn':
@@ -70,7 +93,7 @@ class NNWrapper:
             elif model_type == 'unet':
                 model_class = STFTUNet
             elif model_type == 'tcn' and quant_bits > 0:
-                model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=hidden_channels or 16)
+                model_class = lambda: BrevitasQuantizedSimpleTCN(weight_bits=quant_bits, act_bits=quant_bits, hidden_channels=hidden_channels or 16)
             else:
                 model_class = lambda: SimpleTCN(hidden_channels=hidden_channels or 16)
                 

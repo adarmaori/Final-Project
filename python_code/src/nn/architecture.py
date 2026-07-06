@@ -24,107 +24,90 @@ class Chomp1d(nn.Module):
         return x[:, :, :-self.chomp_size].contiguous()
 
 class SimpleTCN(nn.Module):
-    def __init__(self, input_channels=1, output_channels=1, hidden_channels=16, kernel_size=3, dilation=1):
+    """
+    A true deep Temporal Convolutional Network.
+    Uses exponentially increasing dilations to capture complex time-series data.
+    """
+    def __init__(self, input_channels=1, output_channels=1, hidden_channels=32, kernel_size=15, num_layers=8):
         super(SimpleTCN, self).__init__()
         
-        # Causal Padding = (kernel_size - 1) * dilation
-        padding = (kernel_size - 1) * dilation
+        layers = []
+        in_c = input_channels
         
-        self.conv1 = nn.Conv1d(input_channels, hidden_channels, kernel_size=kernel_size, dilation=dilation, padding=padding)
-        self.chomp1 = Chomp1d(padding)
-        self.relu = nn.ReLU()
+        for i in range(num_layers):
+            # Exponentially increasing dilation: 1, 2, 4, 8, 16...
+            dilation = 2 ** i
+            padding = (kernel_size - 1) * dilation
+            
+            layers.append(nn.Conv1d(in_c, hidden_channels, kernel_size=kernel_size, dilation=dilation, padding=padding))
+            layers.append(Chomp1d(padding))
+            layers.append(nn.Tanh()) # Tanh is great for learning distortion curves
+            
+            in_c = hidden_channels
+            
+        self.tcn = nn.Sequential(*layers)
         
-        self.conv2 = nn.Conv1d(hidden_channels, output_channels, kernel_size=kernel_size, dilation=dilation, padding=padding)
-        self.chomp2 = Chomp1d(padding)
+        # Final linear mapping back to 1 audio channel
+        self.final_conv = nn.Conv1d(hidden_channels, output_channels, kernel_size=1)
 
     def forward(self, x):
-        # x shape: (batch_size, channels, length)
-        # Ensure input is 3D
-        if x.dim() == 2:
-            x = x.unsqueeze(1)
-            
-        x = self.conv1(x)
-        x = self.chomp1(x)
-        x = self.relu(x)
-        
-        x = self.conv2(x)
-        x = self.chomp2(x)
-        return x
+        x = self.tcn(x)
+        return self.final_conv(x)
 
 
 class BrevitasQuantizedSimpleTCN(nn.Module):
-    """Brevitas-based quantized TCN for 16/8/4-bit training and export.
-    
-    Args:
-        input_channels: Input channel count (default 1).
-        output_channels: Output channel count (default 1).
-        kernel_size: Conv kernel size (default 3).
-        dilation: Conv dilation (default 1).
-        quant_bits: Weight quantization bit-width (default 16). 
-                    When quant_bits=4, activations use 8-bit (mixed precision) for stability.
-        hidden_channels: Number of hidden channels in the first/second convs (default 32).
     """
-
-    def __init__(self, input_channels=1, output_channels=1, kernel_size=3, dilation=1, quant_bits=16, hidden_channels=32):
-        super().__init__()
-        if qnn is None:
-            raise ImportError("brevitas is required for BrevitasQuantizedSimpleTCN") from _BREVITAS_IMPORT_ERROR
-
-        if quant_bits < 2:
-            raise ValueError("quant_bits must be >= 2")
-
-        padding = (kernel_size - 1) * dilation
-        self.quant_bits = quant_bits
-        self.hidden_channels = hidden_channels
+    A deep Quantized Temporal Convolutional Network.
+    Uses Brevitas to simulate 8-bit or 4-bit integer quantization during training.
+    """
+    def __init__(self, weight_bits=8, act_bits=8, input_channels=1, output_channels=1, 
+                 hidden_channels=32, kernel_size=15, num_layers=8):
+        super(BrevitasQuantizedSimpleTCN, self).__init__()
         
-        # Mixed precision for 4-bit: keep activations at 8-bit for stability
-        act_bit_width = 8 if quant_bits == 4 else quant_bits
-
-        self.input_quant = qnn.QuantIdentity(bit_width=act_bit_width)
-        self.residual = input_channels == output_channels
-        self.conv1 = qnn.QuantConv1d(
-            input_channels,
-            hidden_channels,
-            kernel_size=kernel_size,
-            dilation=dilation,
-            padding=padding,
+        # Quantize the incoming floating-point audio signal
+        self.quant_input = qnn.QuantIdentity(bit_width=act_bits, return_quant_tensor=True)
+        
+        layers = []
+        in_c = input_channels
+        
+        for i in range(num_layers):
+            dilation = 2 ** i
+            padding = (kernel_size - 1) * dilation
+            
+            # Quantized Convolution
+            layers.append(qnn.QuantConv1d(
+                in_c, hidden_channels, 
+                kernel_size=kernel_size, 
+                dilation=dilation, 
+                padding=padding,
+                weight_bit_width=weight_bits,
+                bias=True,
+                return_quant_tensor=True
+            ))
+            
+            layers.append(Chomp1d(padding))
+            
+            # Non-linearity followed by Activation Quantization
+            layers.append(nn.Tanh())
+            layers.append(qnn.QuantIdentity(bit_width=act_bits, return_quant_tensor=True))
+            
+            in_c = hidden_channels
+            
+        self.tcn = nn.Sequential(*layers)
+        
+        # Final projection back to 1 audio channel (outputs standard float tensor)
+        self.final_conv = qnn.QuantConv1d(
+            hidden_channels, output_channels, 
+            kernel_size=1,
+            weight_bit_width=weight_bits,
             bias=True,
-            weight_bit_width=quant_bits,
+            return_quant_tensor=False
         )
-        self.chomp1 = Chomp1d(padding)
-        self.relu = qnn.QuantReLU(bit_width=act_bit_width)
-        self.conv2 = qnn.QuantConv1d(
-            hidden_channels,
-            output_channels,
-            kernel_size=kernel_size,
-            dilation=dilation,
-            padding=padding,
-            bias=True,
-            weight_bit_width=quant_bits,
-        )
-        self.chomp2 = Chomp1d(padding)
-        self.output_quant = qnn.QuantIdentity(bit_width=act_bit_width)
-        self.output_gain = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
-        if x.dim() == 2:
-            x = x.unsqueeze(1)
-
-        residual = x if self.residual else None
-
-        x = self.input_quant(x)
-        x = self.conv1(x)
-        x = self.chomp1(x)
-        x = self.relu(x)
-        x = self.conv2(x)
-        x = self.chomp2(x)
-        x = self.output_quant(x)
-
-        if residual is not None:
-            x = x + self.output_gain * residual
-
-        return x
-
+        x = self.quant_input(x)
+        x = self.tcn(x)
+        return self.final_conv(x)
 class SimpleLSTM(nn.Module):
     def __init__(self, input_size=1, hidden_size=16, output_size=1):
         super(SimpleLSTM, self).__init__()
