@@ -143,7 +143,7 @@ def _build_model(args):
         return FlangerCRNN()
     elif args.model_type == "tcn":
         if args.quant_bits > 0:
-            model = BrevitasQuantizedSimpleTCN(
+            return BrevitasQuantizedSimpleTCN(
                 weight_bits=args.quant_bits,
                 act_bits=args.quant_bits,
                 hidden_channels=args.tcn_hidden_channels,  # <-- Pass capacity args here
@@ -151,7 +151,7 @@ def _build_model(args):
                 kernel_size=args.tcn_kernel_size
             )
         else:
-            model = SimpleTCN(
+            return SimpleTCN(
                 hidden_channels=args.tcn_hidden_channels,
                 num_layers=args.tcn_num_layers,
                 kernel_size=args.tcn_kernel_size

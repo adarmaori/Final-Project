@@ -10,7 +10,8 @@ import librosa
 import numpy as np
 
 # Add src to path
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from src.nn.architecture import SimpleTCN
 from src.dsp.exciter import aural_exciter
 from src.dsp.distortion import tube_saturator
@@ -18,7 +19,7 @@ from src.dsp.distortion import tube_saturator
 # ---------------------------------------------------------
 # 1. SWEEP CONFIGURATION
 # ---------------------------------------------------------
-TEST_FILE = "raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
+TEST_FILE = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
 CHECKPOINT_DIR = "models/checkpoints"
 SWEEP_OUT_DIR = "models/sweep_results"
 CHANNELS = [16, 24, 32, 48]
@@ -28,7 +29,7 @@ KERNELS = [7, 15, 31]
 # Define the targets and their exact DSP matches for the slim benchmark
 EFFECTS = {
     "exciter": {
-        "target_dir": "targets_exciter_causal",
+        "target_dir": "targets_exciter",
         # Make sure these parameters match exactly what you used to generate the dataset!
         "dsp_func": lambda x: aural_exciter(x, drive=6.0, mix=0.8, cutoff_freq=2200.0) 
     },
@@ -45,6 +46,7 @@ print(f"Total architectures to test per effect: {len(ARCH_GRID)}")
 
 EPOCHS = 50
 BATCH_SIZE = 16
+BENCHMARK_ONLY = True
 
 # ---------------------------------------------------------
 # 2. SLIM BENCHMARKER
@@ -95,37 +97,53 @@ for effect, config in EFFECTS.items():
     
     for (channels, layers, kernel) in ARCH_GRID:
         model_name = f"{effect}_tcn_c{channels}_l{layers}_k{kernel}"
-        print(f"\n--- Training {model_name} ---")
-        
-        # 1. Execute Training (subprocess)
-        # --save_interval 999 prevents intermediate epoch saving
-        cmd = [
-            "python", "src/nn/train.py",
-            "--effect", effect,
-            "--target_subdir", config["target_dir"],
-            "--model_type", "tcn",
-            "--tcn_hidden_channels", str(channels),
-            "--tcn_num_layers", str(layers),
-            "--tcn_kernel_size", str(kernel),
-            "--epochs", str(EPOCHS),
-            "--batch_size", str(BATCH_SIZE),
-            "--save_interval", "999" 
-        ]
-        
-        start_time = time.time()
-        subprocess.run(cmd, check=True)
-        
-        # 2. Find the final checkpoint and rename it
-        # train.py usually names things like 'exciter_tcn_final.pt'
-        # We find the newest .pt file in the checkpoint directory to rename
-        list_of_files = glob.glob(os.path.join(CHECKPOINT_DIR, '*.pt'))
-        latest_file = max(list_of_files, key=os.path.getctime)
-        
         final_model_path = os.path.join(SWEEP_OUT_DIR, f"{model_name}.pt")
-        shutil.copy(latest_file, final_model_path)
-        
-        # Optional: Delete the original to keep the checkpoints folder perfectly clean
-        os.remove(latest_file)
+
+        if not os.path.exists(final_model_path):
+            if BENCHMARK_ONLY:
+                print(f"\n--- Missing {model_name}.pt; skipping (benchmark-only mode) ---")
+                continue
+
+            print(f"\n--- Training {model_name} ---")
+
+            # 0. CLEAR OLD CHECKPOINTS
+            # Prevent the script from accidentally loading a model from a previous run
+            for f in glob.glob(os.path.join(CHECKPOINT_DIR, '*.pt')):
+                os.remove(f)
+
+            # 1. Execute Training (subprocess)
+            # Set save_interval directly to EPOCHS so it saves exactly once at the end
+            cmd = [
+                sys.executable, "src/nn/train.py",
+                "--effect", effect,
+                "--target_subdir", config["target_dir"],
+                "--model_type", "tcn",
+                "--tcn_hidden_channels", str(channels),
+                "--tcn_num_layers", str(layers),
+                "--tcn_kernel_size", str(kernel),
+                "--epochs", str(EPOCHS),
+                "--batch_size", str(BATCH_SIZE),
+                "--save_interval", str(EPOCHS)  # <-- CHANGED: Forces a final save
+            ]
+
+            start_time = time.time()
+            subprocess.run(cmd, check=True)
+
+            # 2. Find the final checkpoint and rename it
+            # Now we use getmtime (Modified Time), which works flawlessly on Windows
+            list_of_files = glob.glob(os.path.join(CHECKPOINT_DIR, '*.pt'))
+
+            if not list_of_files:
+                print(f"ERROR: train.py did not output any .pt files for {model_name}!")
+                continue
+
+            latest_file = max(list_of_files, key=os.path.getmtime)
+            shutil.copy(latest_file, final_model_path)
+
+            # Optional: Delete the original to keep the checkpoints folder perfectly clean
+            os.remove(latest_file)
+        else:
+            print(f"\n--- Using existing checkpoint for {model_name} ---")
         
         # 3. Run Slim Benchmark
         print(f"Benchmarking {model_name}...")
