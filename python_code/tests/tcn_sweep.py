@@ -22,9 +22,9 @@ from src.dsp.distortion import tube_saturator
 TEST_FILE = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
 CHECKPOINT_DIR = "models/checkpoints"
 SWEEP_OUT_DIR = "models/sweep_results"
-CHANNELS = [16, 24, 32, 48]
-LAYERS = [6, 8, 10, 12]
-KERNELS = [7, 15, 31]
+CHANNELS = [4, 8, 12]
+LAYERS = [2, 4]
+KERNELS = [5, 7]
 
 # Define the targets and their exact DSP matches for the slim benchmark
 EFFECTS = {
@@ -46,7 +46,7 @@ print(f"Total architectures to test per effect: {len(ARCH_GRID)}")
 
 EPOCHS = 50
 BATCH_SIZE = 16
-BENCHMARK_ONLY = True
+BENCHMARK_ONLY = False
 
 # ---------------------------------------------------------
 # 2. SLIM BENCHMARKER
@@ -81,16 +81,17 @@ def slim_evaluate(model_path, effect_name, channels, layers, kernel):
     
     # 6. Calculate ESR
     esr = calculate_esr(y_pred, y_target).item()
-    return esr * 100.0 # Return as percentage
+    mse = torch.mean((y_pred - y_target) ** 2).item()
+    return esr * 100.0, mse # Return ESR as percentage and MSE as raw power
 
 # ---------------------------------------------------------
 # 3. SWEEP ORCHESTRATOR
 # ---------------------------------------------------------
 os.makedirs(SWEEP_OUT_DIR, exist_ok=True)
-report_path = os.path.join(SWEEP_OUT_DIR, "sweep_report.csv")
+report_path = os.path.join(SWEEP_OUT_DIR, "sweep_report_small.csv")
 
 with open(report_path, "w") as f:
-    f.write("Effect,Channels,Layers,Kernel,Params,ESR_Percent,Model_File\n")
+    f.write("Effect,Channels,Layers,Kernel,Params,ESR_Percent,MSE,Model_File\n")
 
 for effect, config in EFFECTS.items():
     print(f"\n{'='*50}\nStarting Sweep for: {effect.upper()}\n{'='*50}")
@@ -147,15 +148,15 @@ for effect, config in EFFECTS.items():
         
         # 3. Run Slim Benchmark
         print(f"Benchmarking {model_name}...")
-        esr_score = slim_evaluate(final_model_path, effect, channels, layers, kernel)
+        esr_score, mse_score = slim_evaluate(final_model_path, effect, channels, layers, kernel)
         
         # Calculate params roughly for the log
         param_count = sum(p.numel() for p in SimpleTCN(hidden_channels=channels, num_layers=layers, kernel_size=kernel).parameters())
         
-        print(f"Result: {esr_score:.2f}% ESR | {param_count} params")
+        print(f"Result: {esr_score:.2f}% ESR | MSE: {mse_score:.6f} | {param_count} params")
         
         # 4. Log to CSV
         with open(report_path, "a") as f:
-            f.write(f"{effect},{channels},{layers},{kernel},{param_count},{esr_score:.2f},{model_name}.pt\n")
+            f.write(f"{effect},{channels},{layers},{kernel},{param_count},{esr_score:.2f},{mse_score:.6f},{model_name}.pt\n")
 
 print(f"\nSweep complete! Report saved to {report_path}")
