@@ -13,9 +13,15 @@ except ImportError:
     auraloss = None
 
 # Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN, STFTUNet
+from src.nn.architecture import (
+    SimpleTCN,
+    BrevitasQuantizedSimpleTCN,
+    AudioLSTM,
+    FlangerCRNN,
+    STFTUNet,
+)
 from src.nn.dataset import AudioEffectDataset
 
 
@@ -54,7 +60,6 @@ def _build_mrstft_loss():
         )
 
     class _FallbackMRSTFTLoss(nn.Module):
-        
         def __init__(self):
             super().__init__()
             self.fft_sizes = [512, 1024, 2048]
@@ -63,7 +68,9 @@ def _build_mrstft_loss():
 
         def forward(self, pred, target):
             total_loss = 0.0
-            for fft_size, hop_size, win_length in zip(self.fft_sizes, self.hop_sizes, self.win_lengths):
+            for fft_size, hop_size, win_length in zip(
+                self.fft_sizes, self.hop_sizes, self.win_lengths
+            ):
                 window = torch.hann_window(win_length, device=pred.device)
                 pred_spec = torch.stft(
                     pred.squeeze(1),
@@ -86,14 +93,18 @@ def _build_mrstft_loss():
 
                 pred_mag = torch.abs(pred_spec)
                 target_mag = torch.abs(target_spec)
-                
+
                 # Spectral Convergence
-                spectral_convergence = torch.norm(target_mag - pred_mag, p="fro") / (torch.norm(target_mag, p="fro") + 1e-8)
-                
+                spectral_convergence = torch.norm(target_mag - pred_mag, p="fro") / (
+                    torch.norm(target_mag, p="fro") + 1e-8
+                )
+
                 # FIX: True Log-Magnitude scaling for low-energy reverb tails
                 eps = 1e-7
-                log_mag = torch.mean(torch.abs(torch.log(target_mag + eps) - torch.log(pred_mag + eps)))
-                
+                log_mag = torch.mean(
+                    torch.abs(torch.log(target_mag + eps) - torch.log(pred_mag + eps))
+                )
+
                 total_loss = total_loss + spectral_convergence + log_mag
 
             return total_loss / len(self.fft_sizes)
@@ -106,7 +117,7 @@ def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0)
     Tri-Band Audio Loss.
     1. STFT: Learns the general frequency balance.
     2. L1 (Macro): Locks the phase of the low and mid frequencies.
-    3. L1 Derivative (Micro): Forces the network to reconstruct high-frequency 
+    3. L1 Derivative (Micro): Forces the network to reconstruct high-frequency
        transients and fast-moving harmonic slopes.
     """
     pred = pred.squeeze(1)
@@ -114,7 +125,7 @@ def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0)
 
     # 1. Spectral Loss
     stft_loss = mrstft_loss(pred.unsqueeze(1), target.unsqueeze(1))
-    
+
     # 2. Standard Time-Domain Loss (Lowered alpha so it doesn't overpower)
     l1_loss = torch.nn.functional.l1_loss(pred, target)
 
@@ -148,14 +159,14 @@ def _build_model(args):
                 act_bits=args.quant_bits,
                 hidden_channels=args.tcn_hidden_channels,  # <-- Pass capacity args here
                 num_layers=args.tcn_num_layers,
-                kernel_size=args.tcn_kernel_size
+                kernel_size=args.tcn_kernel_size,
             )
         else:
             return SimpleTCN(
                 hidden_channels=args.tcn_hidden_channels,
                 num_layers=args.tcn_num_layers,
-                kernel_size=args.tcn_kernel_size
-            ) 
+                kernel_size=args.tcn_kernel_size,
+            )
     return SimpleTCN(hidden_channels=args.tcn_hidden_channels)
 
 
@@ -169,14 +180,14 @@ def _build_checkpoint_tag(args):
 
 
 def train(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "mps")
     print(f"Using device: {device}")
-    
+
     print("Loading dataset...")
     try:
         full_dataset = AudioEffectDataset(
-            data_root=args.data_root, 
-            sample_rate=args.sample_rate, 
+            data_root=args.data_root,
+            sample_rate=args.sample_rate,
             chunk_size=args.chunk_size,
             context_size=args.context_size,  # Pass context size to dataset
             input_subdir=args.input_subdir,
@@ -193,62 +204,70 @@ def train(args):
     train_size = int(0.8 * len(full_dataset))
     val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
-    
+
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-    
+
     model = _build_model(args).to(device)
     mrstft_loss = _build_mrstft_loss().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=4)
-    
-    print(f"Model '{args.model_type}' initialized. Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", factor=0.5, patience=4
+    )
+
+    print(
+        f"Model '{args.model_type}' initialized. Train size: {len(train_dataset)}, Val size: {len(val_dataset)}"
+    )
     print(f"Chunk size: {args.chunk_size} | Context Lookback: {args.context_size}")
-    
+
     for epoch in range(args.epochs):
         model.train()
         running_loss = 0.0
         start_time = time.time()
-        
+
         for batch_idx, (inputs, targets) in enumerate(train_loader):
             inputs, targets = inputs.to(device), targets.to(device)
-            
+
             optimizer.zero_grad()
             outputs = model(inputs)
-            
+
             if args.context_size > 0:
-                outputs = outputs[..., args.context_size:]
-            
+                outputs = outputs[..., args.context_size :]
+
             loss = _audio_training_loss(outputs, targets, mrstft_loss)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
             optimizer.step()
-            
+
             running_loss += loss.item()
-            
+
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
             for inputs, targets in val_loader:
                 inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
-                
+
                 # CROP CONTEXT
                 if args.context_size > 0:
-                    outputs = outputs[..., args.context_size:]
-                    
+                    outputs = outputs[..., args.context_size :]
+
                 loss = _audio_training_loss(outputs, targets, mrstft_loss)
                 val_loss += loss.item()
-        
+
         avg_train_loss = running_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader) if len(val_loader) > 0 else 0
         scheduler.step(avg_val_loss)
-        
-        print(f"Epoch [{epoch+1}/{args.epochs}] Train Loss: {avg_train_loss:.6f} | Val Loss: {avg_val_loss:.6f} ({time.time() - start_time:.2f}s)")
-        
+
+        print(
+            f"Epoch [{epoch + 1}/{args.epochs}] Train Loss: {avg_train_loss:.6f} | Val Loss: {avg_val_loss:.6f} ({time.time() - start_time:.2f}s)"
+        )
+
         if (epoch + 1) % args.save_interval == 0:
             model_tag = _build_checkpoint_tag(args)
-            ckpt_path = os.path.join(args.checkpoint_dir, f"{model_tag}_epoch_{epoch+1}.pt")
+            ckpt_path = os.path.join(
+                args.checkpoint_dir, f"{model_tag}_epoch_{epoch + 1}.pt"
+            )
             torch.save(model.state_dict(), ckpt_path)
 
     model_tag = _build_checkpoint_tag(args)
@@ -262,29 +281,63 @@ if __name__ == "__main__":
     parser.add_argument("--data_root", type=str, default="data/datasets")
     parser.add_argument("--input_subdir", type=str, default="inputs")
     parser.add_argument("--target_subdir", type=str, default="targets_reverb")
-    parser.add_argument("--chunk_size", type=int, default=65536, help="Audio Chunk Size")
-    parser.add_argument("--context_size", type=int, default=44100, help="Samples to look backward in time for context")
+    parser.add_argument(
+        "--chunk_size", type=int, default=65536, help="Audio Chunk Size"
+    )
+    parser.add_argument(
+        "--context_size",
+        type=int,
+        default=44100,
+        help="Samples to look backward in time for context",
+    )
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--sample_rate", type=int, default=44100)
     parser.add_argument("--checkpoint_dir", type=str, default="models/checkpoints")
     parser.add_argument("--save_interval", type=int, default=10)
-    parser.add_argument("--effect", type=str, choices=["flange", "distortion", "wah", "reverb", "exciter"], default=None)
-    
-    parser.add_argument("--model_type", type=str, choices=["tcn", "lstm", "crnn", "unet"], default="unet")
+    parser.add_argument(
+        "--effect",
+        type=str,
+        choices=["flange", "distortion", "wah", "reverb", "exciter"],
+        default=None,
+    )
+
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        choices=["tcn", "lstm", "crnn", "unet"],
+        default="unet",
+    )
     parser.add_argument("--quant_bits", type=int, default=0)
     parser.add_argument("--lstm_hidden_size", type=int, default=64)
     parser.add_argument("--lstm_num_layers", type=int, default=2)
     parser.add_argument("--lstm_dropout", type=float, default=0.1)
     parser.add_argument("--grad_clip_norm", type=float, default=1.0)
     # TCN Capacity Arguments
-    parser.add_argument("--tcn_hidden_channels", type=int, default=32, help="Number of filters per TCN layer")
-    parser.add_argument("--tcn_num_layers", type=int, default=8, help="Number of dilated convolutional layers")
-    parser.add_argument("--tcn_kernel_size", type=int, default=15, help="Size of the convolutional kernel")
+    parser.add_argument(
+        "--tcn_hidden_channels",
+        type=int,
+        default=32,
+        help="Number of filters per TCN layer",
+    )
+    parser.add_argument(
+        "--tcn_num_layers",
+        type=int,
+        default=8,
+        help="Number of dilated convolutional layers",
+    )
+    parser.add_argument(
+        "--tcn_kernel_size",
+        type=int,
+        default=15,
+        help="Size of the convolutional kernel",
+    )
 
     args = parser.parse_args()
+    print(args)
     if args.effect is None:
         args.effect = _infer_effect_name(args.target_subdir)
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     train(args)
+
