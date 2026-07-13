@@ -1,0 +1,39 @@
+Implementation: conv1d_large_serial
+Conv file: conv1d_large_serial.v
+Kernel taps: 8
+Quantization: sample_width=6 weight_width=4 acc_width=16
+Target: --hx1k package=vq100 freq=25MHz
+
+Throughput simulation:
+THROUGHPUT_REPORT
+clock_hz=25000000.000000
+sample_width=6
+weight_width=4
+acc_width=16
+kernel_taps=8
+samples_requested=20
+samples_accepted=20
+samples_produced=20
+latency_cycles=9
+max_accept_gap_cycles=9
+steady_cycles_per_sample=9.000000
+steady_samples_per_sec=2777777.777778
+finite_cycles_per_sample=9.050000
+finite_samples_per_sec=2762430.939227
+
+Yosys area summary:
+   Number of cells:                300
+     SB_CARRY                       27
+     SB_DFFESR                      96
+     SB_DFFSR                        2
+     SB_LUT4                       173
+
+nextpnr timing/utilization summary:
+Info: Device utilisation:
+Info: 	         ICESTORM_LC:     259/   1280    20%
+Info: 	        ICESTORM_RAM:       0/     16     0%
+Info: 	               SB_IO:      27/    112    24%
+Info: 	               SB_GB:       6/      8    75%
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 75.09 MHz (PASS at 25.00 MHz)
+Info: Critical path report for clock 'clk$SB_IO_IN_$glb_clk' (posedge -> posedge):
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 77.05 MHz (PASS at 25.00 MHz)

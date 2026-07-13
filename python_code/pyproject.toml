@@ -21,4 +21,5 @@ dependencies = [
     "scipy>=1.10.0",
     "pandas>=2.2.3,<3",
     "soundfile>=0.12.1",
+    "onnx2torch>=1.5.15",
 ]

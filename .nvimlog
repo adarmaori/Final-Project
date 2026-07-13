@@ -1,0 +1,10 @@
+WRN 2026-06-22T09:20:35.735 ?.83007    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/vlSylm/nvim.83007.0
+WRN 2026-06-22T09:20:46.463 ?.83029    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/EFeKzZ/nvim.83029.0
+WRN 2026-06-22T09:20:46.463 ?.83028    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/jzzDDG/nvim.83028.0
+WRN 2026-06-22T09:21:06.408 ?.83160    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/mvLckZ/nvim.83160.0
+WRN 2026-06-22T09:21:17.131 ?.83193    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/hfcDy4/nvim.83193.0
+WRN 2026-06-22T09:21:17.131 ?.83192    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/qCIJh5/nvim.83192.0
+WRN 2026-06-22T09:21:29.956 ?.83317    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/iIxnCU/nvim.83317.0
+WRN 2026-06-22T09:21:29.969 ?.83318    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/81gBmV/nvim.83318.0
+WRN 2026-06-22T09:21:41.372 ?.83354    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/Urqri3/nvim.83354.0
+WRN 2026-06-22T09:21:41.372 ?.83353    server_start:199: Failed to start server: operation not permitted: /var/folders/nv/qdr7wfxs0n5chf_xchrrhrmr0000gn/T/nvim.adarmaori/KTbs8o/nvim.83353.0

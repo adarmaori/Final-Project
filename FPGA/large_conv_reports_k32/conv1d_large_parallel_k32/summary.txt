@@ -1,0 +1,35 @@
+Implementation: conv1d_large_parallel
+Conv file: /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_parallel.v
+Kernel taps: 32
+Target: --hx1k package=vq100 freq=25MHz
+
+Throughput simulation:
+THROUGHPUT_REPORT
+clock_hz=25000000.000000
+kernel_taps=32
+samples_requested=1000
+samples_accepted=1000
+samples_produced=1000
+latency_cycles=1
+max_accept_gap_cycles=1
+steady_cycles_per_sample=1.000000
+steady_samples_per_sec=25000000.000000
+finite_cycles_per_sample=1.001000
+finite_samples_per_sec=24975024.975025
+
+Yosys area summary:
+   Number of cells:                983
+     SB_CARRY                       37
+     SB_DFFESR                     280
+     SB_DFFSR                        1
+     SB_LUT4                       663
+
+nextpnr timing/utilization summary:
+Info: Device utilisation:
+Info: 	         ICESTORM_LC:     937/   1280    73%
+Info: 	        ICESTORM_RAM:       0/     16     0%
+Info: 	               SB_IO:      45/    112    40%
+Info: 	               SB_GB:       3/      8    37%
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 52.91 MHz (PASS at 25.00 MHz)
+Info: Critical path report for clock 'clk$SB_IO_IN_$glb_clk' (posedge -> posedge):
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 52.27 MHz (PASS at 25.00 MHz)

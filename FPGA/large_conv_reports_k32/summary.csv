@@ -1,0 +1,4 @@
+implementation,kernel_taps,latency_cycles,steady_cycles_per_sample,finite_cycles_per_sample,steady_samples_per_sec_at_25mhz,finite_samples_per_sec_at_25mhz,max_clock_mhz,max_theoretical_samples_per_sec,total_cells,icestorm_lc,sb_lut4,sb_carry,sb_dff,sb_dffe,sb_dffsr,sb_dffesr,sb_dffess,sb_mac16
+conv1d_large_4mult,32,9,9.0,9.001,2777777.777778,2777469.170092,36.16,4017777.777777778,910,848,497,75,0,0,2,334,0,0
+conv1d_large_parallel,32,1,1.0,1.001,25000000.0,24975024.975025,52.27,52270000.0,983,937,663,37,0,0,1,280,0,0
+conv1d_large_serial,32,33,33.0,33.001,757575.757576,757552.80143,45.38,1375151.5151515151,1042,986,660,42,0,0,2,336,0,0

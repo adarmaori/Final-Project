@@ -1,0 +1,16 @@
+VCD info: dumpfile test_data/conv1d_large_throughput.vcd opened for output.
+THROUGHPUT_REPORT
+clock_hz=25000000.000000
+kernel_taps=48
+samples_requested=500
+samples_accepted=500
+samples_produced=500
+first_accept_cycle=0
+first_output_cycle=1
+last_output_cycle=500
+latency_cycles=1
+max_accept_gap_cycles=1
+steady_cycles_per_sample=1.000000
+steady_samples_per_sec=25000000.000000
+finite_cycles_per_sample=1.002000
+finite_samples_per_sec=24950099.800399

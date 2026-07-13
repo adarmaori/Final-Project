@@ -1,0 +1,5 @@
+implementation,latency_cycles,steady_cycles_per_sample,finite_cycles_per_sample,steady_samples_per_sec_at_25mhz,finite_samples_per_sec_at_25mhz,max_clock_mhz,max_theoretical_samples_per_sec,total_cells,icestorm_lc,sb_lut4,sb_carry,sb_dff,sb_dffe,sb_dffsr,sb_dffesr,sb_dffess,sb_mac16
+conv1d_2mult,12,3.0,3.01,8333333.333333,8305647.840532,119.15,39716666.666666664,627,414,250,124,3,0,9,232,0,0
+conv1d_basic,6,1.0,1.006,25000000.0,24850894.632207,130.57,130570000.0,354,246,124,71,0,0,6,144,0,0
+conv1d_parallel_pipelined,12,1.0,1.012,25000000.0,24703557.312253,121.26,121260000.0,706,411,212,160,0,0,12,313,0,0
+conv1d_serial,18,5.0,5.014,5000000.0,4986039.090546,106.37,21274000.0,799,534,370,170,9,0,9,232,0,0

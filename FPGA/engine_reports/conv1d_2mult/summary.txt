@@ -1,0 +1,34 @@
+Implementation: conv1d_2mult
+Conv file: /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_2mult.v
+Target: --hx1k package=vq100 freq=25MHz
+
+Throughput simulation:
+THROUGHPUT_REPORT
+clock_hz=25000000.000000
+samples_requested=1000
+samples_accepted=1000
+samples_produced=1000
+latency_cycles=12
+max_accept_gap_cycles=3
+steady_cycles_per_sample=3.000000
+steady_samples_per_sec=8333333.333333
+finite_cycles_per_sample=3.010000
+finite_samples_per_sec=8305647.840532
+
+Yosys area summary:
+   Number of cells:                627
+     SB_CARRY                      124
+     SB_DFF                          3
+     SB_DFFESR                     232
+     SB_DFFSR                        9
+     SB_LUT4                       250
+
+nextpnr timing/utilization summary:
+Info: Device utilisation:
+Info: 	         ICESTORM_LC:     414/   1280    32%
+Info: 	        ICESTORM_RAM:       0/     16     0%
+Info: 	               SB_IO:      21/    112    18%
+Info: 	               SB_GB:       6/      8    75%
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 121.20 MHz (PASS at 25.00 MHz)
+Info: Critical path report for clock 'clk$SB_IO_IN_$glb_clk' (posedge -> posedge):
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 119.15 MHz (PASS at 25.00 MHz)

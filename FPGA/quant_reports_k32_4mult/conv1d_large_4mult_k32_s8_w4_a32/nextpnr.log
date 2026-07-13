@@ -1,0 +1,535 @@
+Warning: No PCF file specified; IO pins will be placed automatically
+
+Info: Packing constants..
+Info: Packing IOs..
+Info: Packing LUT-FFs..
+Info:      449 LCs used as LUT4 only
+Info:        3 LCs used as LUT4 and DFF
+Info: Packing non-LUT FFs..
+Info:      333 LCs used as DFF only
+Info: Packing carries..
+Info:       16 LCs used as CARRY only
+Info: Packing indirect carry+LUT pairs...
+Info:        4 LUTs merged into carry LCs
+Info: Packing RAMs..
+Info: Placing PLLs..
+Info: Packing special functions..
+Info: Packing PLLs..
+Info: Promoting globals..
+Info: promoting clk$SB_IO_IN (fanout 336)
+Info: promoting rst$SB_IO_IN [reset] (fanout 289)
+Info: promoting sample_valid_SB_LUT4_I1_O[1] [reset] (fanout 46)
+Info: promoting conv.impl.busy_SB_DFFSR_Q_D_SB_LUT4_I3_O [cen] (fanout 32)
+Info: promoting conv.impl.busy_SB_LUT4_I2_O [cen] (fanout 32)
+Info: Constraining chains...
+Info:        4 LCs used to legalise carry chains.
+Info: Checksum: 0xda1003c4
+
+Info: Device utilisation:
+Info: 	         ICESTORM_LC:     803/   1280    62%
+Info: 	        ICESTORM_RAM:       0/     16     0%
+Info: 	               SB_IO:      45/    112    40%
+Info: 	               SB_GB:       5/      8    62%
+Info: 	        ICESTORM_PLL:       0/      1     0%
+Info: 	         SB_WARMBOOT:       0/      1     0%
+
+Info: Placed 0 cells based on constraints.
+Info: Creating initial analytic placement for 726 cells, random placement wirelen = 9779.
+Info:     at initial placer iter 0, wirelen = 541
+Info:     at initial placer iter 1, wirelen = 528
+Info:     at initial placer iter 2, wirelen = 598
+Info:     at initial placer iter 3, wirelen = 615
+Info: Running main analytical placer, max placement attempts per cell = 90951.
+Info:     at iteration #1, type ALL: wirelen solved = 608, spread = 3656, legal = 3731; time = 0.01s
+Info:     at iteration #2, type ALL: wirelen solved = 632, spread = 3024, legal = 3175; time = 0.01s
+Info:     at iteration #3, type ALL: wirelen solved = 691, spread = 2749, legal = 2970; time = 0.01s
+Info:     at iteration #4, type ALL: wirelen solved = 705, spread = 2546, legal = 2768; time = 0.01s
+Info:     at iteration #5, type ALL: wirelen solved = 762, spread = 2469, legal = 2672; time = 0.01s
+Info:     at iteration #6, type ALL: wirelen solved = 799, spread = 2391, legal = 2549; time = 0.01s
+Info:     at iteration #7, type ALL: wirelen solved = 824, spread = 2452, legal = 2568; time = 0.01s
+Info:     at iteration #8, type ALL: wirelen solved = 945, spread = 2436, legal = 2598; time = 0.01s
+Info:     at iteration #9, type ALL: wirelen solved = 997, spread = 2339, legal = 2501; time = 0.01s
+Info:     at iteration #10, type ALL: wirelen solved = 1046, spread = 2332, legal = 2515; time = 0.01s
+Info:     at iteration #11, type ALL: wirelen solved = 1114, spread = 2335, legal = 2443; time = 0.01s
+Info:     at iteration #12, type ALL: wirelen solved = 1150, spread = 2262, legal = 2411; time = 0.01s
+Info:     at iteration #13, type ALL: wirelen solved = 1196, spread = 2197, legal = 2407; time = 0.01s
+Info:     at iteration #14, type ALL: wirelen solved = 1227, spread = 2209, legal = 2438; time = 0.01s
+Info:     at iteration #15, type ALL: wirelen solved = 1268, spread = 2250, legal = 2329; time = 0.01s
+Info:     at iteration #16, type ALL: wirelen solved = 1218, spread = 2135, legal = 2303; time = 0.01s
+Info:     at iteration #17, type ALL: wirelen solved = 1256, spread = 2264, legal = 2406; time = 0.01s
+Info:     at iteration #18, type ALL: wirelen solved = 1300, spread = 2112, legal = 2316; time = 0.01s
+Info:     at iteration #19, type ALL: wirelen solved = 1265, spread = 2150, legal = 2295; time = 0.01s
+Info:     at iteration #20, type ALL: wirelen solved = 1272, spread = 2155, legal = 2290; time = 0.01s
+Info:     at iteration #21, type ALL: wirelen solved = 1293, spread = 2139, legal = 2306; time = 0.01s
+Info:     at iteration #22, type ALL: wirelen solved = 1329, spread = 2070, legal = 2198; time = 0.01s
+Info:     at iteration #23, type ALL: wirelen solved = 1399, spread = 2037, legal = 2169; time = 0.01s
+Info:     at iteration #24, type ALL: wirelen solved = 1416, spread = 2014, legal = 2105; time = 0.01s
+Info:     at iteration #25, type ALL: wirelen solved = 1415, spread = 1977, legal = 2113; time = 0.01s
+Info:     at iteration #26, type ALL: wirelen solved = 1423, spread = 1956, legal = 2124; time = 0.01s
+Info:     at iteration #27, type ALL: wirelen solved = 1447, spread = 2009, legal = 2157; time = 0.01s
+Info:     at iteration #28, type ALL: wirelen solved = 1440, spread = 1950, legal = 2086; time = 0.01s
+Info:     at iteration #29, type ALL: wirelen solved = 1455, spread = 1965, legal = 2120; time = 0.01s
+Info:     at iteration #30, type ALL: wirelen solved = 1473, spread = 1982, legal = 2105; time = 0.01s
+Info:     at iteration #31, type ALL: wirelen solved = 1461, spread = 2045, legal = 2197; time = 0.01s
+Info:     at iteration #32, type ALL: wirelen solved = 1548, spread = 2039, legal = 2189; time = 0.01s
+Info:     at iteration #33, type ALL: wirelen solved = 1538, spread = 2034, legal = 2202; time = 0.01s
+Info: HeAP Placer Time: 0.34s
+Info:   of which solving equations: 0.22s
+Info:   of which spreading cells: 0.04s
+Info:   of which strict legalisation: 0.02s
+
+Info: Running simulated annealing placer for refinement.
+Info:   at iteration #1: temp = 0.000000, timing cost = 503, wirelen = 2086
+Info:   at iteration #5: temp = 0.000000, timing cost = 420, wirelen = 1706
+Info:   at iteration #10: temp = 0.000000, timing cost = 447, wirelen = 1615
+Info:   at iteration #15: temp = 0.000000, timing cost = 429, wirelen = 1569
+Info:   at iteration #20: temp = 0.000000, timing cost = 417, wirelen = 1529
+Info:   at iteration #24: temp = 0.000000, timing cost = 430, wirelen = 1512 
+Info: SA placement time 0.38s
+
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 40.35 MHz (PASS at 25.00 MHz)
+
+Info: Max delay <async>                       -> posedge clk$SB_IO_IN_$glb_clk: 6.22 ns
+Info: Max delay posedge clk$SB_IO_IN_$glb_clk -> <async>                      : 2.36 ns
+
+Info: Slack histogram:
+Info:  legend: * represents 3 endpoint(s)
+Info:          + represents [1,3) endpoint(s)
+Info: [ 15216,  16407) |****+
+Info: [ 16407,  17598) |****+
+Info: [ 17598,  18789) |***+
+Info: [ 18789,  19980) |+
+Info: [ 19980,  21171) |+
+Info: [ 21171,  22362) |*+
+Info: [ 22362,  23553) | 
+Info: [ 23553,  24744) | 
+Info: [ 24744,  25935) | 
+Info: [ 25935,  27126) |+
+Info: [ 27126,  28317) |****************+
+Info: [ 28317,  29508) |+
+Info: [ 29508,  30699) |+
+Info: [ 30699,  31890) |*+
+Info: [ 31890,  33081) | 
+Info: [ 33081,  34272) |***+
+Info: [ 34272,  35463) |********************+
+Info: [ 35463,  36654) |****************************************+
+Info: [ 36654,  37845) |******************+
+Info: [ 37845,  39036) |************************************************************ 
+Info: Checksum: 0xc33c0e92
+
+Info: Routing..
+Info: Setting up routing queue.
+Info: Routing 2120 arcs.
+Info:            |   (re-)routed arcs  |   delta    | remaining|       time spent     |
+Info:    IterCnt |  w/ripup   wo/ripup |  w/r  wo/r |      arcs| batch(sec) total(sec)|
+Info:       1000 |       62        875 |   62   875 |      1216|       0.09       0.09|
+Info:       2000 |      425       1504 |  363   629 |       667|       0.06       0.16|
+Info:       2817 |      560       2185 |  135   681 |         0|       0.09       0.24|
+Info: Routing complete.
+Info: Router1 time 0.24s
+Info: Checksum: 0xcbf6e7a2
+
+Info: Critical path report for clock 'clk$SB_IO_IN_$glb_clk' (posedge -> posedge):
+Info:       type curr  total name
+Info:   clk-to-q  0.54  0.54 Source conv.impl.tap_index_SB_DFFESR_Q_13_D_SB_LUT4_O_LC.O
+Info:    routing  1.27  1.81 Net conv.impl.acc_SB_DFFESR_Q_22_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I3_SB_LUT4_O_I1_SB_LUT4_O_1_I2_SB_LUT4_O_I1_SB_LUT4_O_1_I1_SB_LUT4_O_I1[0] (7,4) -> (9,5)
+Info:                          Sink $nextpnr_ICESTORM_LC_0.I1
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.26  2.07 Source $nextpnr_ICESTORM_LC_0.COUT
+Info:    routing  0.00  2.07 Net $nextpnr_ICESTORM_LC_0$O (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_I3_SB_CARRY_CO$CARRY.CIN
+Info:      logic  0.13  2.20 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_I3_SB_CARRY_CO$CARRY.COUT
+Info:    routing  0.00  2.20 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_I3 (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  2.33 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  2.33 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3 (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  2.45 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  2.45 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  2.58 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  2.58 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  2.70 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  2.70 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  2.83 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  2.83 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,5) -> (9,5)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  2.95 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.20  3.15 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,5) -> (9,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  3.28 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  3.28 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,6) -> (9,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  3.40 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  3.40 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,6) -> (9,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  3.53 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  3.53 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,6) -> (9,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  3.65 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  3.65 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,6) -> (9,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  3.78 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.00  3.78 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,6) -> (9,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  3.91 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.26  4.17 Net $nextpnr_ICESTORM_LC_1$I3 (9,6) -> (9,6)
+Info:                          Sink $nextpnr_ICESTORM_LC_1.I3
+Info:      logic  0.31  4.48 Source $nextpnr_ICESTORM_LC_1.O
+Info:    routing  0.59  5.07 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO (9,6) -> (8,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_I3_O_SB_CARRY_I1_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI$CARRY.I3
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.22-88.35
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.31  5.38 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_I3_O_SB_CARRY_I1_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI$CARRY.O
+Info:    routing  0.59  5.97 Net conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_O (8,6) -> (8,6)
+Info:                          Sink conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_I3_O_SB_CARRY_I1_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI$CARRY.I2
+Info:      logic  0.23  6.20 Source conv.impl.busy_SB_LUT4_I2_I3_SB_LUT4_O_1_I2_SB_LUT4_I3_O_SB_CARRY_I1_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_CARRY_CI$CARRY.COUT
+Info:    routing  0.26  6.46 Net $nextpnr_ICESTORM_LC_3$I3 (8,6) -> (8,6)
+Info:                          Sink $nextpnr_ICESTORM_LC_3.I3
+Info:      logic  0.31  6.78 Source $nextpnr_ICESTORM_LC_3.O
+Info:    routing  0.90  7.68 Net conv.impl.acc_SB_DFFESR_Q_22_D_SB_LUT4_O_I1_SB_LUT4_O_I1[0] (8,6) -> (6,6)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_I1_O_SB_LUT4_O_1_LC.I2
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:88.21-88.51
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.38  8.06 Source conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_I1_O_SB_LUT4_O_1_LC.O
+Info:    routing  0.59  8.65 Net conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3[1] (6,6) -> (6,7)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_I1_SB_LUT4_O_LC.I2
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.38  9.02 Source conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_I1_SB_LUT4_O_LC.O
+Info:    routing  0.59  9.61 Net conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O[1] (6,7) -> (6,7)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_1_O_SB_LUT4_O_I1_SB_LUT4_O_1_LC.I1
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.40  10.01 Source conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_1_O_SB_LUT4_O_I1_SB_LUT4_O_1_LC.O
+Info:    routing  0.59  10.60 Net conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_1_O_SB_LUT4_O_I1[2] (6,7) -> (6,7)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_1_O_SB_LUT4_O_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.31  10.91 Source conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_1_O_SB_LUT4_O_LC.O
+Info:    routing  0.59  11.50 Net conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_1_O[1] (6,7) -> (5,8)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_O_SB_CARRY_I0_CO_SB_LUT4_I3_LC.I1
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.40  11.90 Source conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I3_O_SB_CARRY_I0_CO_SB_LUT4_I3_LC.O
+Info:    routing  1.27  13.18 Net conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I2_1_O[3] (5,8) -> (5,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I2_1_O_SB_LUT4_I2_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.31  13.49 Source conv.impl.acc_SB_DFFESR_Q_30_D_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_LUT4_O_1_I3_SB_LUT4_I3_O_SB_LUT4_O_1_I3_SB_LUT4_O_I3_SB_LUT4_I3_O_SB_LUT4_I2_1_O_SB_LUT4_I2_LC.O
+Info:    routing  0.59  14.08 Net conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_I1_SB_LUT4_O_I3[1] (5,11) -> (5,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_I1_SB_LUT4_O_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.31  14.39 Source conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_I1_SB_LUT4_O_LC.O
+Info:    routing  0.59  14.98 Net conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_I1[1] (5,11) -> (4,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_LC.I1
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.26  15.24 Source conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_LUT4_I3_LC.COUT
+Info:    routing  0.26  15.50 Net conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO (4,11) -> (4,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.31  15.81 Source conv.impl.acc_SB_DFFESR_Q_27_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I2_SB_LUT4_O_I2_SB_LUT4_O_I3_SB_CARRY_CI_CO_SB_CARRY_CI_CO_SB_LUT4_I3_LC.O
+Info:    routing  0.96  16.77 Net conv.impl.acc_SB_DFFESR_Q_26_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I3[1] (4,11) -> (5,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I3_SB_LUT4_O_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.31  17.09 Source conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I3_SB_LUT4_O_LC.O
+Info:    routing  0.59  17.68 Net conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_I3[2] (5,13) -> (4,14)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.31  17.99 Source conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_LC.O
+Info:    routing  0.59  18.58 Net conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_I1[1] (4,14) -> (4,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_LC.I1
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.26  18.84 Source conv.impl.acc_SB_DFFESR_Q_25_D_SB_LUT4_O_I1_SB_LUT4_O_LC.COUT
+Info:    routing  0.26  19.10 Net conv.impl.acc_SB_DFFESR_Q_24_D_SB_LUT4_O_I1_SB_LUT4_O_I1[3] (4,13) -> (4,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_24_D_SB_LUT4_O_I1_SB_LUT4_O_LC.I3
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.31  19.41 Source conv.impl.acc_SB_DFFESR_Q_24_D_SB_LUT4_O_I1_SB_LUT4_O_LC.O
+Info:    routing  1.27  20.69 Net conv.impl.acc_SB_DFFESR_Q_24_D_SB_LUT4_O_I1[1] (4,13) -> (2,10)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_24_D_SB_LUT4_O_LC.I1
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.26  20.94 Source conv.impl.acc_SB_DFFESR_Q_24_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.20  21.14 Net conv.impl.acc_SB_DFFESR_Q_23_D_SB_LUT4_O_I1[3] (2,10) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_23_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  21.27 Source conv.impl.acc_SB_DFFESR_Q_23_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  21.27 Net conv.impl.acc_SB_DFFESR_Q_22_D_SB_LUT4_O_I1[3] (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_22_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  21.39 Source conv.impl.acc_SB_DFFESR_Q_22_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  21.39 Net conv.impl.acc_SB_DFFESR_Q_21_D_SB_LUT4_O_I3 (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_21_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  21.52 Source conv.impl.acc_SB_DFFESR_Q_21_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  21.52 Net conv.impl.acc_SB_DFFESR_Q_20_D_SB_LUT4_O_I3 (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_20_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  21.65 Source conv.impl.acc_SB_DFFESR_Q_20_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  21.65 Net conv.impl.acc_SB_DFFESR_Q_19_D_SB_LUT4_O_I3 (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_19_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  21.77 Source conv.impl.acc_SB_DFFESR_Q_19_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  21.77 Net conv.impl.acc_SB_DFFESR_Q_18_D_SB_LUT4_O_I3 (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_18_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  21.90 Source conv.impl.acc_SB_DFFESR_Q_18_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  21.90 Net conv.impl.acc_SB_DFFESR_Q_17_D_SB_LUT4_O_I3 (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_17_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  22.02 Source conv.impl.acc_SB_DFFESR_Q_17_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  22.02 Net conv.impl.acc_SB_DFFESR_Q_16_D_SB_LUT4_O_I3 (2,11) -> (2,11)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_16_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  22.15 Source conv.impl.acc_SB_DFFESR_Q_16_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.20  22.34 Net conv.impl.acc_SB_DFFESR_Q_15_D_SB_LUT4_O_I3 (2,11) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_15_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  22.47 Source conv.impl.acc_SB_DFFESR_Q_15_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  22.47 Net conv.impl.acc_SB_DFFESR_Q_14_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_14_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  22.60 Source conv.impl.acc_SB_DFFESR_Q_14_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  22.60 Net conv.impl.acc_SB_DFFESR_Q_13_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_13_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  22.72 Source conv.impl.acc_SB_DFFESR_Q_13_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  22.72 Net conv.impl.acc_SB_DFFESR_Q_12_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_12_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  22.85 Source conv.impl.acc_SB_DFFESR_Q_12_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  22.85 Net conv.impl.acc_SB_DFFESR_Q_11_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_11_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      logic  0.13  22.98 Source conv.impl.acc_SB_DFFESR_Q_11_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  22.98 Net conv.impl.acc_SB_DFFESR_Q_10_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_10_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  23.10 Source conv.impl.acc_SB_DFFESR_Q_10_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  23.10 Net conv.impl.acc_SB_DFFESR_Q_9_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_9_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  23.23 Source conv.impl.acc_SB_DFFESR_Q_9_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  23.23 Net conv.impl.acc_SB_DFFESR_Q_8_D_SB_LUT4_O_I3 (2,12) -> (2,12)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_8_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  23.35 Source conv.impl.acc_SB_DFFESR_Q_8_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.20  23.55 Net conv.impl.acc_SB_DFFESR_Q_7_D_SB_LUT4_O_I3 (2,12) -> (2,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_7_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  23.67 Source conv.impl.acc_SB_DFFESR_Q_7_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  23.67 Net conv.impl.acc_SB_DFFESR_Q_6_D_SB_LUT4_O_I3 (2,13) -> (2,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_6_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  23.80 Source conv.impl.acc_SB_DFFESR_Q_6_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  23.80 Net conv.impl.acc_SB_DFFESR_Q_5_D_SB_LUT4_O_I3 (2,13) -> (2,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_5_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  23.93 Source conv.impl.acc_SB_DFFESR_Q_5_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  23.93 Net conv.impl.acc_SB_DFFESR_Q_4_D_SB_LUT4_O_I3 (2,13) -> (2,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_4_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  24.05 Source conv.impl.acc_SB_DFFESR_Q_4_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.00  24.05 Net conv.impl.acc_SB_DFFESR_Q_3_D_SB_LUT4_O_I3 (2,13) -> (2,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_3_D_SB_LUT4_O_LC.CIN
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.13  24.18 Source conv.impl.acc_SB_DFFESR_Q_3_D_SB_LUT4_O_LC.COUT
+Info:    routing  0.26  24.44 Net conv.impl.acc_SB_DFFESR_Q_2_D_SB_LUT4_O_I3 (2,13) -> (2,13)
+Info:                          Sink conv.impl.acc_SB_DFFESR_Q_2_D_SB_LUT4_O_LC.I3
+Info:                          Defined in:
+Info:                               /Users/adarmaori/Desktop/Final Project/FPGA/conv1d_large_4mult.v:89.35-89.50
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/arith_map.v:62.5-70.4
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/abc9_model.v:4.9-4.11
+Info:      logic  0.31  24.75 Source conv.impl.acc_SB_DFFESR_Q_2_D_SB_LUT4_O_LC.O
+Info:    routing  0.96  25.71 Net conv.impl.acc_SB_DFFESR_Q_2_D (2,13) -> (2,15)
+Info:                          Sink conv.impl.sample_out_SB_DFFESR_Q_2_DFFLC.I0
+Info:      setup  0.47  26.18 Source conv.impl.sample_out_SB_DFFESR_Q_2_DFFLC.I0
+Info: 11.58 ns logic, 14.60 ns routing
+
+Info: Critical path report for cross-domain path '<async>' -> 'posedge clk$SB_IO_IN_$glb_clk':
+Info:       type curr  total name
+Info:     source  0.00  0.00 Source sample_valid$sb_io.D_IN_0
+Info:    routing  0.96  0.96 Net sample_valid$SB_IO_IN (8,17) -> (8,15)
+Info:                          Sink sample_valid_SB_LUT4_I1_LC.I1
+Info:                          Defined in:
+Info:                               conv1d_large_benchmark_top.v:13.16-13.28
+Info:      logic  0.40  1.36 Source sample_valid_SB_LUT4_I1_LC.O
+Info:    routing  3.42  4.78 Net sample_valid_SB_LUT4_I1_O[1] (8,15) -> (1,1)
+Info:                          Sink conv.impl.tap[11]_SB_DFFESR_Q_7_DFFLC.CEN
+Info:                          Defined in:
+Info:                               /opt/homebrew/bin/../share/yosys/ice40/cells_map.v:6.21-6.22
+Info:      setup  0.10  4.88 Source conv.impl.tap[11]_SB_DFFESR_Q_7_DFFLC.CEN
+Info: 0.50 ns logic, 4.38 ns routing
+
+Info: Critical path report for cross-domain path 'posedge clk$SB_IO_IN_$glb_clk' -> '<async>':
+Info:       type curr  total name
+Info:   clk-to-q  0.54  0.54 Source conv.impl.sample_out_SB_DFFESR_Q_19_DFFLC.O
+Info:    routing  1.70  2.24 Net sample_out[12]$SB_IO_OUT (1,9) -> (0,2)
+Info:                          Sink sample_out[12]$sb_io.D_OUT_0
+Info:                          Defined in:
+Info:                               conv1d_large_benchmark_top.v:17.40-17.50
+Info: 0.54 ns logic, 1.70 ns routing
+
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 38.20 MHz (PASS at 25.00 MHz)
+
+Info: Max delay <async>                       -> posedge clk$SB_IO_IN_$glb_clk: 4.88 ns
+Info: Max delay posedge clk$SB_IO_IN_$glb_clk -> <async>                      : 2.24 ns
+
+Info: Slack histogram:
+Info:  legend: * represents 4 endpoint(s)
+Info:          + represents [1,4) endpoint(s)
+Info: [ 13820,  15053) |****+
+Info: [ 15053,  16286) |***+
+Info: [ 16286,  17519) |***+
+Info: [ 17519,  18752) |+
+Info: [ 18752,  19985) |+
+Info: [ 19985,  21218) |+
+Info: [ 21218,  22451) |+
+Info: [ 22451,  23684) | 
+Info: [ 23684,  24917) | 
+Info: [ 24917,  26150) |+
+Info: [ 26150,  27383) |+
+Info: [ 27383,  28616) |***************+
+Info: [ 28616,  29849) |+
+Info: [ 29849,  31082) |+
+Info: [ 31082,  32315) | 
+Info: [ 32315,  33548) | 
+Info: [ 33548,  34781) | 
+Info: [ 34781,  36014) |*******************************+
+Info: [ 36014,  37247) |*****************************************+
+Info: [ 37247,  38480) |************************************************************ 
+1 warning, 0 errors
+
+Info: Program finished normally.

@@ -1,0 +1,15 @@
+VCD info: dumpfile test_data/tcn_network_throughput.vcd opened for output.
+THROUGHPUT_REPORT
+clock_hz=25000000.000000
+samples_requested=32
+samples_accepted=32
+samples_produced=32
+first_accept_cycle=0
+first_output_cycle=12
+last_output_cycle=105
+latency_cycles=12
+max_accept_gap_cycles=3
+steady_cycles_per_sample=3.000000
+steady_samples_per_sec=8333333.333333
+finite_cycles_per_sample=3.312500
+finite_samples_per_sec=7547169.811321

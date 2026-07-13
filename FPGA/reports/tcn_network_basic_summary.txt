@@ -1,0 +1,22 @@
+Report: tcn_network_basic
+Source: tcn_network_basic.v tcn_layer_basic.v conv1d_basic.v 
+Target: --hx1k package=vq100 freq=25MHz
+
+Yosys area summary:
+   Number of cells:                342
+     SB_CARRY                       63
+     SB_DFFESR                     144
+     SB_DFFSR                        6
+     SB_LUT4                       123
+
+nextpnr timing/utilization summary:
+Info: Device utilisation:
+Info: 	         ICESTORM_LC:     245/   1280    19%
+Info: 	        ICESTORM_RAM:       0/     16     0%
+Info: 	               SB_IO:      21/    112    18%
+Info: 	               SB_GB:       4/      8    50%
+Info: 	        ICESTORM_PLL:       0/      1     0%
+Info: 	         SB_WARMBOOT:       0/      1     0%
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 118.71 MHz (PASS at 25.00 MHz)
+Info: Critical path report for clock 'clk$SB_IO_IN_$glb_clk' (posedge -> posedge):
+Info: Max frequency for clock 'clk$SB_IO_IN_$glb_clk': 114.93 MHz (PASS at 25.00 MHz)
