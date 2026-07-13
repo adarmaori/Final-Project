@@ -1,2 +1,3 @@
 Effect,Channels,Layers,Kernel,Params,ESR_Percent,MSE,Model_File
-exciter,16,6,7,9185,0.51,0.000064,exciter_tcn_c16_l6_k7.pt
+exciter,4,2,5,113,25.18,0.003161,exciter_tcn_c4_l2_k5.pt
+exciter,4,2,7,153,33.88,0.004253,exciter_tcn_c4_l2_k7.pt

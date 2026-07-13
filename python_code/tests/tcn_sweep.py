@@ -22,23 +22,30 @@ from src.dsp.distortion import tube_saturator
 TEST_FILE = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
 CHECKPOINT_DIR = "models/checkpoints"
 SWEEP_OUT_DIR = "models/sweep_results"
-CHANNELS = [16]
-LAYERS = [6]
-KERNELS = [7]
+
+EPOCHS = 50
+LR = 0.001
+BATCH_SIZE = 32
+BENCHMARK_ONLY = False
+
+CHANNELS = [4, 8, 12]
+LAYERS = [2, 4]
+KERNELS = [5, 7]
 
 # Define the targets and their exact DSP matches for the slim benchmark
 EFFECTS = {
     "exciter": {
         "target_dir": "targets_exciter",
-        # Make sure these parameters match exactly what you used to generate the dataset!
-        "dsp_func": lambda x: aural_exciter(x, drive=6.0, mix=0.8, cutoff_freq=2200.0),
+        "dsp_func": lambda x: aural_exciter(
+            x, drive=6.0, mix=0.8, cutoff_freq=2200.0
+        ),
     },
-    # "distortion": {
-    #     "target_dir": "targets_distortion",
-    #     "dsp_func": lambda x: tube_saturator(
-    #         x, drive=70.0, asymmetry=0.4, tone=3000
-    #     ),  # Update with your exact distortion params
-    # },
+    "distortion": {
+        "target_dir": "targets_distortion",
+        "dsp_func": lambda x: tube_saturator(
+            x, drive=100.0, asymmetry=0.4, tone=3000
+        ), 
+    },
 }
 
 # The Architectural Grid: (Hidden Channels, Num Layers, Kernel Size)
@@ -46,9 +53,6 @@ ARCH_GRID = list(itertools.product(CHANNELS, LAYERS, KERNELS))
 
 print(f"Total architectures to test per effect: {len(ARCH_GRID)}")
 
-EPOCHS = 400
-BATCH_SIZE = 32
-BENCHMARK_ONLY = False
 
 
 # ---------------------------------------------------------
@@ -112,7 +116,8 @@ for effect, config in EFFECTS.items():
         model_name = f"{effect}_tcn_c{channels}_l{layers}_k{kernel}"
         final_model_path = os.path.join(SWEEP_OUT_DIR, f"{model_name}.pt")
 
-        if not os.path.exists(final_model_path):
+        if 1:
+        # if not os.path.exists(final_model_path):
             if BENCHMARK_ONLY:
                 print(
                     f"\n--- Missing {model_name}.pt; skipping (benchmark-only mode) ---"
@@ -140,7 +145,7 @@ for effect, config in EFFECTS.items():
                 "--tcn_hidden_channels",
                 str(channels),
                 "--lr",
-                str(0.003),
+                str(LR),
                 "--tcn_num_layers",
                 str(layers),
                 "--tcn_kernel_size",

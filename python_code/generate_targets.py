@@ -184,7 +184,7 @@ def _build_arg_parser():
     )
 
     # Tube saturator parameters
-    parser.add_argument("--tube_drive", type=float, default=70.0)
+    parser.add_argument("--tube_drive", type=float, default=100.0)
     parser.add_argument("--tube_asymmetry", type=float, default=0.4)
     parser.add_argument("--tube_tone", type=float, default=5000.0)
 
@@ -207,9 +207,9 @@ def _build_arg_parser():
     parser.add_argument("--reverb_wet_level", type=float, default=0.30, help="Wet signal mix coefficient (0.0 to 1.0).")
     
     # Exciter parameters
-    parser.add_argument("--exciter_drive", type=float, default=3.0, help="Saturation drive for the high-end.")
-    parser.add_argument("--exciter_mix", type=float, default=0.4, help="Wet mix of the generated harmonics.")
-    parser.add_argument("--exciter_cutoff", type=float, default=3000.0, help="High-pass cutoff frequency in Hz.")
+    parser.add_argument("--exciter_drive", type=float, default=6.0, help="Saturation drive for the high-end.")
+    parser.add_argument("--exciter_mix", type=float, default=0.8, help="Wet mix of the generated harmonics.")
+    parser.add_argument("--exciter_cutoff", type=float, default=2200.0, help="High-pass cutoff frequency in Hz.")
     
     return parser
 
