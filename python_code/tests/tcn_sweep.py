@@ -24,7 +24,7 @@ CHECKPOINT_DIR = "models/checkpoints"
 SWEEP_OUT_DIR = "models/sweep_results"
 
 EPOCHS = 50
-LR = 0.001
+LR = 0.003
 BATCH_SIZE = 32
 BENCHMARK_ONLY = False
 
@@ -36,15 +36,11 @@ KERNELS = [5, 7]
 EFFECTS = {
     "exciter": {
         "target_dir": "targets_exciter",
-        "dsp_func": lambda x: aural_exciter(
-            x, drive=6.0, mix=0.8, cutoff_freq=2200.0
-        ),
+        "dsp_func": lambda x: aural_exciter(x, drive=6.0, mix=0.8, cutoff_freq=2200.0),
     },
     "distortion": {
         "target_dir": "targets_distortion",
-        "dsp_func": lambda x: tube_saturator(
-            x, drive=100.0, asymmetry=0.4, tone=3000
-        ), 
+        "dsp_func": lambda x: tube_saturator(x, drive=100.0, asymmetry=0.4, tone=3000),
     },
 }
 
@@ -52,7 +48,6 @@ EFFECTS = {
 ARCH_GRID = list(itertools.product(CHANNELS, LAYERS, KERNELS))
 
 print(f"Total architectures to test per effect: {len(ARCH_GRID)}")
-
 
 
 # ---------------------------------------------------------
@@ -117,7 +112,7 @@ for effect, config in EFFECTS.items():
         final_model_path = os.path.join(SWEEP_OUT_DIR, f"{model_name}.pt")
 
         if 1:
-        # if not os.path.exists(final_model_path):
+            # if not os.path.exists(final_model_path):
             if BENCHMARK_ONLY:
                 print(
                     f"\n--- Missing {model_name}.pt; skipping (benchmark-only mode) ---"
@@ -202,4 +197,3 @@ for effect, config in EFFECTS.items():
             )
 
 print(f"\nSweep complete! Report saved to {report_path}")
-
