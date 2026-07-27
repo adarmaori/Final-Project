@@ -152,19 +152,20 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
             "color": 'navy',
         })
 
-        for bits in [16, 8, 4]:
+        for bits in [8]:
             tcn_candidates = []
             if tcn_effect_name:
                 tcn_candidates.append(f"{tcn_effect_name}_tcn_q{bits}_final.pt")
             tcn_candidates.append(f"tcn_q{bits}_final.pt")
             tcn_path = resolve_tcn_path(*tcn_candidates)
+
             tcn_variants.append({
                 "name": f"Causal TCN ({bits}-bit)",
                 "path": tcn_path,
                 "model_type": "tcn",
                 "quant_bits": bits,
                 "active": effect_mode in ("distortion", "exciter") and os.path.exists(tcn_path),
-                "color": color_map.get(bits, 'gray'),
+                "color": color_map[bits],
             })
     else:
         if quant_bits > 0:
@@ -271,6 +272,19 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
             "active": True,
             "color": "navy",
         }]
+        
+        if compare_all_quant:
+            for bits in [8]:
+                q_path = custom_model_path.replace(".pt", f"_q{bits}.pt")
+                if os.path.exists(q_path):
+                    models_config.append({
+                        "name": os.path.basename(q_path),
+                        "path": q_path,
+                        "model_type": model_type,
+                        "quant_bits": bits,
+                        "active": True,
+                        "color": "cyan"
+                    })
     else:
         models_config = _build_models_config(
             project_models_dir,
@@ -523,6 +537,27 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
     plt.savefig(plot_path, dpi=200, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved plots to {plot_path}")
+
+    # --- Extra Zoomed Waveforms Figure ---
+    fig_zoom, (ax_500, ax_200) = plt.subplots(2, 1, figsize=(10, 8), constrained_layout=True)
+    
+    for ax, num_points in zip([ax_500, ax_200], [500, 200]):
+        zoom_slice = slice(waveform_start, min(len(y_full), waveform_start + num_points))
+        
+        ax.plot(y_full[zoom_slice], label="Input", alpha=0.5, color='gray')
+        ax.plot(y_dsp_ref[zoom_slice], label="DSP", color='black', linewidth=1)
+        for name, output_audio in outputs_a.items():
+            if name not in ("DSP baseline", "DSP RT"):
+                ax.plot(output_audio[zoom_slice], label=name, linestyle='--')
+        
+        ax.set_title(f"Waveform Detail ({num_points} points)")
+        ax.legend(ncol=2)
+        ax.grid(True, alpha=0.3)
+
+    zoom_plot_path = os.path.join(output_dir, f"benchmark_suite_{effect_tag}_waveforms.png")
+    fig_zoom.savefig(zoom_plot_path, dpi=200, bbox_inches='tight')
+    plt.close(fig_zoom)
+    print(f"Saved waveform plots to {zoom_plot_path}")
 
     spectrogram_tracks = [("Input", y_full), ("DSP", y_dsp_ref)]
     for name, output_audio in outputs_a.items():

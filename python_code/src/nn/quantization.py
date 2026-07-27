@@ -146,9 +146,19 @@ def _collect_simple_tcn_ranges(model: nn.Module, calibration_data: Iterable[torc
 
         handles.append(module.register_forward_hook(_hook))
 
-    register("conv1", model.conv1)
-    register("relu", model.relu)
-    register("conv2", model.conv2)
+    if hasattr(model, 'tcn'):
+        for i, layer in enumerate(model.tcn):
+            if isinstance(layer, nn.Conv1d):
+                register(f"tcn_{i}_conv", layer)
+            elif isinstance(layer, nn.Tanh):
+                register(f"tcn_{i}_tanh", layer)
+        register("final_conv", model.final_conv)
+    elif hasattr(model, 'conv1'):
+        register("conv1", model.conv1)
+        if hasattr(model, 'relu'):
+            register("relu", model.relu)
+        register("conv2", model.conv2)
+    
     register("output", model)
 
     model.eval()
@@ -199,83 +209,101 @@ def export_simple_tcn_quantization_artifact(
     ranges = _collect_simple_tcn_ranges(model, calibration_data, device=device)
 
     input_quant = _build_tensor_quantization(cfg.resolved_input_bits(), ranges["input"], signed=True)
-    conv1_out_quant = _build_tensor_quantization(cfg.activation_bits, ranges["conv1"], signed=True)
-    relu_out_quant = _build_tensor_quantization(cfg.activation_bits, ranges["relu"], signed=False)
-    conv2_out_quant = _build_tensor_quantization(cfg.activation_bits, ranges["conv2"], signed=True)
-    output_quant = _build_tensor_quantization(cfg.resolved_output_bits(), ranges["output"], signed=True)
-
-    conv1_weight_q, conv1_weight_scales, conv1_weight_zp, _ = _quantize_per_channel_weight(model.conv1.weight.detach().cpu(), cfg.weight_bits)
-    conv1_bias_q, conv1_bias_scales, conv1_bias_zp = _quantize_bias(
-        model.conv1.bias.detach().cpu(), input_quant.scale, conv1_weight_scales, cfg.accumulator_bits
-    ) if model.conv1.bias is not None else (None, [], [])
-
-    conv2_weight_q, conv2_weight_scales, conv2_weight_zp, _ = _quantize_per_channel_weight(model.conv2.weight.detach().cpu(), cfg.weight_bits)
-    conv2_bias_q, conv2_bias_scales, conv2_bias_zp = _quantize_bias(
-        model.conv2.bias.detach().cpu(), conv1_out_quant.scale, conv2_weight_scales, cfg.accumulator_bits
-    ) if model.conv2.bias is not None else (None, [], [])
-
-    layers = [
-        QuantizedLayer(
-            name="conv1",
+    layers = []
+    
+    if hasattr(model, 'tcn'):
+        prev_quant = input_quant
+        for i, layer in enumerate(model.tcn):
+            if isinstance(layer, nn.Conv1d):
+                out_quant = _build_tensor_quantization(cfg.activation_bits, ranges[f"tcn_{i}_conv"], signed=True)
+                weight_q, weight_scales, weight_zp, _ = _quantize_per_channel_weight(layer.weight.detach().cpu(), cfg.weight_bits)
+                bias_q, bias_scales, bias_zp = _quantize_bias(
+                    layer.bias.detach().cpu(), prev_quant.scale, weight_scales, cfg.accumulator_bits
+                ) if layer.bias is not None else (None, [], [])
+                
+                layers.append(QuantizedLayer(
+                    name=f"tcn_{i}_conv",
+                    layer_type="conv1d",
+                    input_quant=prev_quant,
+                    output_quant=out_quant,
+                    weight=QuantizedParameter(name="weight", bits=cfg.weight_bits, scale=weight_scales, zero_point=weight_zp, values=weight_q.tolist()),
+                    bias=QuantizedParameter(name="bias", bits=cfg.accumulator_bits, scale=bias_scales, zero_point=bias_zp, values=bias_q.tolist()) if bias_q is not None else None
+                ))
+                prev_quant = out_quant
+            elif isinstance(layer, nn.Tanh):
+                out_quant = _build_tensor_quantization(cfg.activation_bits, ranges[f"tcn_{i}_tanh"], signed=True)
+                layers.append(QuantizedLayer(
+                    name=f"tcn_{i}_tanh",
+                    layer_type="tanh",
+                    input_quant=prev_quant,
+                    output_quant=out_quant
+                ))
+                prev_quant = out_quant
+        
+        # Final conv
+        out_quant = _build_tensor_quantization(cfg.resolved_output_bits(), ranges["output"], signed=True)
+        fc = model.final_conv
+        weight_q, weight_scales, weight_zp, _ = _quantize_per_channel_weight(fc.weight.detach().cpu(), cfg.weight_bits)
+        bias_q, bias_scales, bias_zp = _quantize_bias(
+            fc.bias.detach().cpu(), prev_quant.scale, weight_scales, cfg.accumulator_bits
+        ) if fc.bias is not None else (None, [], [])
+        
+        layers.append(QuantizedLayer(
+            name="final_conv",
             layer_type="conv1d",
-            input_quant=input_quant,
-            output_quant=conv1_out_quant,
-            weight=QuantizedParameter(
-                name="weight",
-                bits=cfg.weight_bits,
-                scale=conv1_weight_scales,
-                zero_point=conv1_weight_zp,
-                values=conv1_weight_q.tolist(),
+            input_quant=prev_quant,
+            output_quant=out_quant,
+            weight=QuantizedParameter(name="weight", bits=cfg.weight_bits, scale=weight_scales, zero_point=weight_zp, values=weight_q.tolist()),
+            bias=QuantizedParameter(name="bias", bits=cfg.accumulator_bits, scale=bias_scales, zero_point=bias_zp, values=bias_q.tolist()) if bias_q is not None else None
+        ))
+    else:
+        conv1_out_quant = _build_tensor_quantization(cfg.activation_bits, ranges["conv1"], signed=True)
+        relu_out_quant = _build_tensor_quantization(cfg.activation_bits, ranges.get("relu", ranges["conv1"]), signed=False)
+        conv2_out_quant = _build_tensor_quantization(cfg.activation_bits, ranges["conv2"], signed=True)
+        output_quant = _build_tensor_quantization(cfg.resolved_output_bits(), ranges["output"], signed=True)
+
+        conv1_weight_q, conv1_weight_scales, conv1_weight_zp, _ = _quantize_per_channel_weight(model.conv1.weight.detach().cpu(), cfg.weight_bits)
+        conv1_bias_q, conv1_bias_scales, conv1_bias_zp = _quantize_bias(
+            model.conv1.bias.detach().cpu(), input_quant.scale, conv1_weight_scales, cfg.accumulator_bits
+        ) if model.conv1.bias is not None else (None, [], [])
+
+        conv2_weight_q, conv2_weight_scales, conv2_weight_zp, _ = _quantize_per_channel_weight(model.conv2.weight.detach().cpu(), cfg.weight_bits)
+        conv2_bias_q, conv2_bias_scales, conv2_bias_zp = _quantize_bias(
+            model.conv2.bias.detach().cpu(), conv1_out_quant.scale, conv2_weight_scales, cfg.accumulator_bits
+        ) if model.conv2.bias is not None else (None, [], [])
+
+        layers = [
+            QuantizedLayer(
+                name="conv1",
+                layer_type="conv1d",
+                input_quant=input_quant,
+                output_quant=conv1_out_quant,
+                weight=QuantizedParameter(
+                    name="weight", bits=cfg.weight_bits, scale=conv1_weight_scales, zero_point=conv1_weight_zp, values=conv1_weight_q.tolist(),
+                ),
+                bias=(QuantizedParameter(
+                        name="bias", bits=cfg.accumulator_bits, scale=conv1_bias_scales, zero_point=conv1_bias_zp, values=conv1_bias_q.tolist(),
+                    ) if conv1_bias_q is not None else None),
             ),
-            bias=(
-                QuantizedParameter(
-                    name="bias",
-                    bits=cfg.accumulator_bits,
-                    scale=conv1_bias_scales,
-                    zero_point=conv1_bias_zp,
-                    values=conv1_bias_q.tolist(),
-                )
-                if conv1_bias_q is not None
-                else None
+            QuantizedLayer(
+                name="relu", layer_type="relu", input_quant=conv1_out_quant, output_quant=relu_out_quant,
             ),
-        ),
-        QuantizedLayer(
-            name="relu",
-            layer_type="relu",
-            input_quant=conv1_out_quant,
-            output_quant=relu_out_quant,
-        ),
-        QuantizedLayer(
-            name="conv2",
-            layer_type="conv1d",
-            input_quant=relu_out_quant,
-            output_quant=conv2_out_quant,
-            weight=QuantizedParameter(
-                name="weight",
-                bits=cfg.weight_bits,
-                scale=conv2_weight_scales,
-                zero_point=conv2_weight_zp,
-                values=conv2_weight_q.tolist(),
+            QuantizedLayer(
+                name="conv2",
+                layer_type="conv1d",
+                input_quant=relu_out_quant,
+                output_quant=conv2_out_quant,
+                weight=QuantizedParameter(
+                    name="weight", bits=cfg.weight_bits, scale=conv2_weight_scales, zero_point=conv2_weight_zp, values=conv2_weight_q.tolist(),
+                ),
+                bias=(QuantizedParameter(
+                        name="bias", bits=cfg.accumulator_bits, scale=conv2_bias_scales, zero_point=conv2_bias_zp, values=conv2_bias_q.tolist(),
+                    ) if conv2_bias_q is not None else None),
             ),
-            bias=(
-                QuantizedParameter(
-                    name="bias",
-                    bits=cfg.accumulator_bits,
-                    scale=conv2_bias_scales,
-                    zero_point=conv2_bias_zp,
-                    values=conv2_bias_q.tolist(),
-                )
-                if conv2_bias_q is not None
-                else None
+            QuantizedLayer(
+                name="output", layer_type="identity", input_quant=conv2_out_quant, output_quant=output_quant,
             ),
-        ),
-        QuantizedLayer(
-            name="output",
-            layer_type="identity",
-            input_quant=conv2_out_quant,
-            output_quant=output_quant,
-        ),
-    ]
+        ]
 
     artifact = QuantizedArtifact(
         model_name=model.__class__.__name__,

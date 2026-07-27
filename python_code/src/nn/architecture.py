@@ -65,7 +65,7 @@ class BrevitasQuantizedSimpleTCN(nn.Module):
         super(BrevitasQuantizedSimpleTCN, self).__init__()
         
         # Quantize the incoming floating-point audio signal
-        self.quant_input = qnn.QuantIdentity(bit_width=act_bits, return_quant_tensor=True)
+        self.quant_input = qnn.QuantIdentity(bit_width=act_bits, return_quant_tensor=False)
         
         layers = []
         in_c = input_channels
@@ -82,14 +82,14 @@ class BrevitasQuantizedSimpleTCN(nn.Module):
                 padding=padding,
                 weight_bit_width=weight_bits,
                 bias=True,
-                return_quant_tensor=True
+                return_quant_tensor=False
             ))
             
             layers.append(Chomp1d(padding))
             
             # Non-linearity followed by Activation Quantization
             layers.append(nn.Tanh())
-            layers.append(qnn.QuantIdentity(bit_width=act_bits, return_quant_tensor=True))
+            layers.append(qnn.QuantIdentity(bit_width=act_bits, return_quant_tensor=False))
             
             in_c = hidden_channels
             

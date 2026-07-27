@@ -119,14 +119,6 @@ class NNWrapper:
                 tcn_params = {'hidden_channels': 16, 'kernel_size': 15, 'num_layers': 8}
 
             # --- Smart Checkpoint Detection ---
-            if model_type == 'tcn' and quant_bits > 0:
-                # If there are no Brevitas 'quant' keys in the saved weights, it's a float model
-                is_quant_checkpoint = any("quant" in k for k in state_dict.keys())
-                if not is_quant_checkpoint:
-                    print(f"Warning: {model_path} is a floating-point checkpoint. Auto-switching to Float TCN.")
-                    quant_bits = 0  # Force fallback to SimpleTCN
-            # ----------------------------------
-
             if model_type == 'lstm':
                 model_class = AudioLSTM
             elif model_type == 'crnn':
@@ -136,14 +128,20 @@ class NNWrapper:
             elif model_type == 'tcn' and is_legacy_tcn:
                 model_class = lambda: LegacySimpleTCN(hidden_channels=tcn_params['hidden_channels'], kernel_size=tcn_params['kernel_size'])
             elif model_type == 'tcn' and quant_bits > 0:
-                model_class = lambda: BrevitasQuantizedSimpleTCN(weight_bits=quant_bits, act_bits=quant_bits, **tcn_params)
+                is_quant_checkpoint = any("quant" in k for k in state_dict.keys())
+                if not is_quant_checkpoint:
+                    print(f"Warning: {model_path} is a floating-point checkpoint. Auto-switching to Float TCN.")
+                    quant_bits = 0  # Force fallback to SimpleTCN
+                    model_class = lambda: SimpleTCN(**tcn_params)
+                else:
+                    model_class = lambda: BrevitasQuantizedSimpleTCN(weight_bits=quant_bits, act_bits=quant_bits, **tcn_params)
             else:
                 model_class = lambda: SimpleTCN(**tcn_params)
                 
             self.model = model_class()
             
             # Load trained weights matching the architecture
-            self.model.load_state_dict(state_dict)
+            self.model.load_state_dict(state_dict, strict=False)
             print(f"Loaded {model_type} model from {model_path} onto {self.device}")
         else:
             if model_type == 'lstm':
