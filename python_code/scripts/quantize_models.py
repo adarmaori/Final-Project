@@ -9,22 +9,22 @@ from src.nn.quantization import export_simple_tcn_quantization_artifact, Quantiz
 def main():
     models_to_quantize = [
         {
-            "name": "exciter",
-            "path": "models/sweep_results/exciter_tcn_c8_l4_k5.pt",
-            "channels": 8,
+            "name": "distortion",
+            "path": "models/sweep_results/distortion_tcn_c4_l4_k5.pt",
+            "channels": 4,
             "layers": 4,
             "kernel": 5
         },
         {
-            "name": "distortion",
-            "path": "models/sweep_results/distortion_tcn_c8_l4_k7.pt",
+            "name": "exciter",
+            "path": "models/sweep_results/exciter_tcn_c8_l2_k5.pt",
             "channels": 8,
-            "layers": 4,
-            "kernel": 7
+            "layers": 2,
+            "kernel": 5
         }
     ]
 
-    bit_widths = [4, 8, 16]
+    bit_widths = [8]
 
     # Load a small snippet of audio for calibration (PTQ max/min range collection)
     audio_path = "data/datasets/inputs/funk-soul-guitar-clean-4_90bpm_G.wav"

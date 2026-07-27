@@ -112,7 +112,7 @@ def _build_mrstft_loss():
     return _FallbackMRSTFTLoss()
 
 
-def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0):
+def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0, loss_type="all"):
     """
     Tri-Band Audio Loss.
     1. STFT: Learns the general frequency balance.
@@ -136,7 +136,14 @@ def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0)
     diff_loss = torch.nn.functional.l1_loss(pred_diff, target_diff)
 
     # Combine all three
-    return stft_loss + (alpha * l1_loss) + (diff_alpha * diff_loss)
+    if loss_type == "mrstft_only":
+        return stft_loss
+    elif loss_type == "l1_only":
+        return l1_loss
+    elif loss_type == "l1_diff_only":
+        return diff_loss
+    else:
+        return stft_loss + (alpha * l1_loss) + (diff_alpha * diff_loss)
 
 
 def _build_model(args):
@@ -234,7 +241,7 @@ def train(args):
             if args.context_size > 0:
                 outputs = outputs[..., args.context_size :]
 
-            loss = _audio_training_loss(outputs, targets, mrstft_loss)
+            loss = _audio_training_loss(outputs, targets, mrstft_loss, loss_type=args.loss_type)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
             optimizer.step()
@@ -252,7 +259,7 @@ def train(args):
                 if args.context_size > 0:
                     outputs = outputs[..., args.context_size :]
 
-                loss = _audio_training_loss(outputs, targets, mrstft_loss)
+                loss = _audio_training_loss(outputs, targets, mrstft_loss, loss_type=args.loss_type)
                 val_loss += loss.item()
 
         avg_train_loss = running_loss / len(train_loader)
@@ -309,6 +316,7 @@ if __name__ == "__main__":
         choices=["tcn", "lstm", "crnn", "unet"],
         default="unet",
     )
+    parser.add_argument("--loss_type", type=str, choices=["all", "mrstft_only", "l1_only", "l1_diff_only"], default="all")
     parser.add_argument("--quant_bits", type=int, default=0)
     parser.add_argument("--lstm_hidden_size", type=int, default=64)
     parser.add_argument("--lstm_num_layers", type=int, default=2)
