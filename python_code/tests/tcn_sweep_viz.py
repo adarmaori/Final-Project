@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
-CSV_PATH = os.path.join(PROJECT_ROOT, "models", "sweep_results", "sweep_report.csv")
+CSV_PATH = os.path.join(PROJECT_ROOT, "models", "sweep_results", "sweep_report_small.csv")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "models", "sweep_results", "analysis")
 OUTPUT_FIGURE = os.path.join(OUTPUT_DIR, "tcn_sweep_esr_analysis.png")
 OUTPUT_EFFECT_FIGURE = os.path.join(OUTPUT_DIR, "tcn_sweep_esr_by_effect.png")

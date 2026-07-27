@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import numpy as np
 import sys
 import os
@@ -10,23 +11,36 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from src.nn.architecture import SimpleTCN, BrevitasQuantizedSimpleTCN, AudioLSTM, FlangerCRNN, STFTUNet
 
 
-def _infer_tcn_hidden_channels(state_dict):
+def _infer_tcn_params(state_dict):
     """
-    Infers the number of hidden channels from the saved PyTorch state dictionary.
+    Infers the hidden_channels, kernel_size, and num_layers from the saved PyTorch state dictionary.
     Supports both legacy TCN architectures (conv1) and new deep sequential TCNs (tcn.0).
     """
+    params = {'hidden_channels': 16, 'kernel_size': 15, 'num_layers': 8}
+    
     # Check for old architecture naming
     conv1_weight = state_dict.get('conv1.weight')
     if conv1_weight is not None:
-        return int(conv1_weight.shape[0])
+        params['hidden_channels'] = int(conv1_weight.shape[0])
+        params['kernel_size'] = int(conv1_weight.shape[2])
+        # old architecture might just be a small fixed model, or maybe we can count
+        layer_keys = [k for k in state_dict.keys() if 'conv' in k and k.endswith('.weight')]
+        params['num_layers'] = max(1, len(layer_keys) - 1)
+        return params
     
     # Check for new deep architecture naming
     tcn_0_weight = state_dict.get('tcn.0.weight')
     if tcn_0_weight is not None:
-        return int(tcn_0_weight.shape[0])
+        params['hidden_channels'] = int(tcn_0_weight.shape[0])
+        params['kernel_size'] = int(tcn_0_weight.shape[2])
         
-    # Default fallback
-    return 16
+        # Count the number of layers by looking for weight tensors inside 'tcn.'
+        layer_weights = [k for k in state_dict.keys() if k.startswith('tcn.') and k.endswith('.weight')]
+        if layer_weights:
+            params['num_layers'] = len(layer_weights)
+        return params
+        
+    return params
 
 class DSPWrapper:
     def __init__(self, processor_func, **kwargs):
@@ -62,6 +76,29 @@ class RealtimeDSPWrapper:
         return self.processor.process(audio_buffer)
 
 
+class LegacySimpleTCN(nn.Module):
+    """
+    Compatibility layer for older TCN checkpoints (like distortion_tcn_final.pt)
+    which used a simple 2-layer convolution architecture instead of the deep Sequential block.
+    """
+    def __init__(self, hidden_channels=16, kernel_size=3):
+        super().__init__()
+        # To maintain causality, padding is kernel_size - 1
+        self.padding = kernel_size - 1
+        self.conv1 = nn.Conv1d(1, hidden_channels, kernel_size=kernel_size, padding=self.padding)
+        self.conv2 = nn.Conv1d(hidden_channels, 1, kernel_size=kernel_size, padding=self.padding)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        if self.padding > 0:
+            x = x[:, :, :-self.padding].contiguous()
+        x = torch.tanh(x)
+        x = self.conv2(x)
+        if self.padding > 0:
+            x = x[:, :, :-self.padding].contiguous()
+        return x
+
+
 class NNWrapper:
     def __init__(self, model_path=None, model_type='tcn', quant_bits=0):
         """
@@ -73,7 +110,13 @@ class NNWrapper:
         # Instantiate correct model architecture based on string identifier
         if model_path and os.path.exists(model_path):
             state_dict = torch.load(model_path, map_location=self.device)
-            hidden_channels = _infer_tcn_hidden_channels(state_dict) if model_type == 'tcn' else None
+            is_legacy_tcn = False
+            
+            if model_type == 'tcn':
+                tcn_params = _infer_tcn_params(state_dict)
+                is_legacy_tcn = 'conv1.weight' in state_dict
+            else:
+                tcn_params = {'hidden_channels': 16, 'kernel_size': 15, 'num_layers': 8}
 
             # --- Smart Checkpoint Detection ---
             if model_type == 'tcn' and quant_bits > 0:
@@ -86,16 +129,16 @@ class NNWrapper:
 
             if model_type == 'lstm':
                 model_class = AudioLSTM
-            if model_type == 'lstm':
-                model_class = AudioLSTM
             elif model_type == 'crnn':
                 model_class = FlangerCRNN
             elif model_type == 'unet':
                 model_class = STFTUNet
+            elif model_type == 'tcn' and is_legacy_tcn:
+                model_class = lambda: LegacySimpleTCN(hidden_channels=tcn_params['hidden_channels'], kernel_size=tcn_params['kernel_size'])
             elif model_type == 'tcn' and quant_bits > 0:
-                model_class = lambda: BrevitasQuantizedSimpleTCN(weight_bits=quant_bits, act_bits=quant_bits, hidden_channels=hidden_channels or 16)
+                model_class = lambda: BrevitasQuantizedSimpleTCN(weight_bits=quant_bits, act_bits=quant_bits, **tcn_params)
             else:
-                model_class = lambda: SimpleTCN(hidden_channels=hidden_channels or 16)
+                model_class = lambda: SimpleTCN(**tcn_params)
                 
             self.model = model_class()
             
@@ -110,7 +153,7 @@ class NNWrapper:
             elif model_type == 'unet':
                 model_class = STFTUNet
             elif model_type == 'tcn' and quant_bits > 0:
-                model_class = lambda: BrevitasQuantizedSimpleTCN(quant_bits=quant_bits, hidden_channels=32)
+                model_class = lambda: BrevitasQuantizedSimpleTCN(weight_bits=quant_bits, act_bits=quant_bits, hidden_channels=32)
             else:
                 model_class = SimpleTCN
             self.model = model_class()

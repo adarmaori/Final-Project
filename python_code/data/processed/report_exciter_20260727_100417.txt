@@ -1,7 +1,7 @@
 Phase 1 Detailed Benchmark Report [exciter]
 =================================
-Date: 2026-07-27 10:04:17
-Input: romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav (53.71s @ 44100Hz)
+Date: 2026-07-27 10:04:13
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
 Effect Mode: exciter
 
 Experiment A: Batch Processing Checks
@@ -9,9 +9,9 @@ Experiment A: Batch Processing Checks
 +--------------------------+----------+--------+----------+--------+--------------+
 | Model                    | Time(ms) | RTF    | MSE      | ESR    | Speed vs DSP |
 +--------------------------+----------+--------+----------+--------+--------------+
-| DSP baseline             |    85.81 | 0.0016 | 0.00e+00 |  0.00% | 1.0x         |
-| DSP RT                   |    72.08 | 0.0013 | 2.22e-04 | 10.65% | 0.84x slower |
-| exciter_tcn_c12_l4_k7.pt |    39.99 | 0.0007 | 6.51e-06 |  0.31% | 0.47x slower |
+| DSP baseline             |     8.37 | 0.0016 | 0.00e+00 |  0.00% | 1.0x         |
+| DSP RT                   |     7.15 | 0.0013 | 1.79e-03 | 14.23% | 0.85x slower |
+| exciter_tcn_c12_l4_k7.pt |    19.77 | 0.0037 | 3.07e-04 |  2.45% | 2.36x slower |
 +--------------------------+----------+--------+----------+--------+--------------+
 
 Experiment B: Scalability (RTF over different durations)
@@ -19,10 +19,8 @@ Experiment B: Scalability (RTF over different durations)
 +----------+--------------+--------+--------------------------+
 | Duration | DSP baseline | DSP RT | exciter_tcn_c12_l4_k7.pt |
 +----------+--------------+--------+--------------------------+
-|      1.0 |       0.0021 | 0.0010 |                   0.0013 |
-|      5.0 |       0.0016 | 0.0013 |                   0.0008 |
-|     10.0 |       0.0015 | 0.0014 |                   0.0008 |
-|     30.0 |       0.0017 | 0.0015 |                   0.0008 |
+|      1.0 |       0.0023 | 0.0010 |                   0.0076 |
+|      5.0 |       0.0018 | 0.0015 |                   0.0012 |
 +----------+--------------+--------+--------------------------+
 
 Experiment C: Simulated Real-Time (Block Size: 512)
@@ -31,7 +29,7 @@ Budget per block: 11.61 ms
 +--------------------------+-------------+-------------+----------------------+
 | Model                    | Avg Latency | Max Latency | Load                 |
 +--------------------------+-------------+-------------+----------------------+
-| DSP baseline             |   0.2202 ms |   0.7009 ms | 1.90% (P99: 0.42 ms) |
-| DSP RT                   |   0.0263 ms |   0.0615 ms | 0.23% (P99: 0.04 ms) |
-| exciter_tcn_c12_l4_k7.pt |   0.9249 ms |   2.3815 ms | 7.97% (P99: 2.04 ms) |
+| DSP baseline             |   0.1950 ms |   0.8758 ms | 1.68% (P99: 0.41 ms) |
+| DSP RT                   |   0.0263 ms |   0.0410 ms | 0.23% (P99: 0.03 ms) |
+| exciter_tcn_c12_l4_k7.pt |   0.8422 ms |   7.6641 ms | 7.25% (P99: 1.36 ms) |
 +--------------------------+-------------+-------------+----------------------+

@@ -1,7 +1,7 @@
 Phase 1 Detailed Benchmark Report [distortion]
 =================================
-Date: 2026-07-27 10:00:50
-Input: romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav (53.71s @ 44100Hz)
+Date: 2026-07-27 10:00:46
+Input: funk-soul-guitar-clean-4_90bpm_G.wav (5.33s @ 44100Hz)
 Effect Mode: distortion
 
 Experiment A: Batch Processing Checks
@@ -9,9 +9,9 @@ Experiment A: Batch Processing Checks
 +----------------------------+----------+--------+----------+-------+--------------+
 | Model                      | Time(ms) | RTF    | MSE      | ESR   | Speed vs DSP |
 +----------------------------+----------+--------+----------+-------+--------------+
-| DSP baseline               |    66.26 | 0.0012 | 0.00e+00 | 0.00% | 1.0x         |
-| DSP RT                     |    66.59 | 0.0012 | 1.54e-06 | 0.00% | 1.00x slower |
-| distortion_tcn_c4_l4_k7.pt |    21.51 | 0.0004 | 6.88e-03 | 1.38% | 0.32x slower |
+| DSP baseline               |     5.21 | 0.0010 | 0.00e+00 | 0.00% | 1.0x         |
+| DSP RT                     |     4.99 | 0.0009 | 1.53e-06 | 0.00% | 0.96x slower |
+| distortion_tcn_c4_l4_k7.pt |    17.62 | 0.0033 | 3.84e-02 | 9.20% | 3.38x slower |
 +----------------------------+----------+--------+----------+-------+--------------+
 
 Experiment B: Scalability (RTF over different durations)
@@ -19,10 +19,8 @@ Experiment B: Scalability (RTF over different durations)
 +----------+--------------+--------+----------------------------+
 | Duration | DSP baseline | DSP RT | distortion_tcn_c4_l4_k7.pt |
 +----------+--------------+--------+----------------------------+
-|      1.0 |       0.0018 | 0.0007 |                     0.0013 |
-|      5.0 |       0.0011 | 0.0011 |                     0.0005 |
-|     10.0 |       0.0012 | 0.0012 |                     0.0005 |
-|     30.0 |       0.0012 | 0.0013 |                     0.0004 |
+|      1.0 |       0.0026 | 0.0008 |                     0.0077 |
+|      5.0 |       0.0017 | 0.0013 |                     0.0013 |
 +----------+--------------+--------+----------------------------+
 
 Experiment C: Simulated Real-Time (Block Size: 512)
@@ -31,7 +29,7 @@ Budget per block: 11.61 ms
 +----------------------------+-------------+-------------+----------------------+
 | Model                      | Avg Latency | Max Latency | Load                 |
 +----------------------------+-------------+-------------+----------------------+
-| DSP baseline               |   0.2018 ms |   0.4948 ms | 1.74% (P99: 0.34 ms) |
-| DSP RT                     |   0.0249 ms |   0.0594 ms | 0.21% (P99: 0.03 ms) |
-| distortion_tcn_c4_l4_k7.pt |   0.7917 ms |   1.5863 ms | 6.82% (P99: 1.08 ms) |
+| DSP baseline               |   0.2460 ms |   0.9659 ms | 2.12% (P99: 0.43 ms) |
+| DSP RT                     |   0.0294 ms |   0.1380 ms | 0.25% (P99: 0.09 ms) |
+| distortion_tcn_c4_l4_k7.pt |   0.8965 ms |   4.6253 ms | 7.72% (P99: 1.75 ms) |
 +----------------------------+-------------+-------------+----------------------+

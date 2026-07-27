@@ -26,7 +26,7 @@ SWEEP_OUT_DIR = "models/sweep_results"
 EPOCHS = 50
 LR = 0.003
 BATCH_SIZE = 32
-BENCHMARK_ONLY = False
+BENCHMARK_ONLY = True
 
 CHANNELS = [4, 8, 12]
 LAYERS = [2, 4]
@@ -40,7 +40,7 @@ EFFECTS = {
     },
     "distortion": {
         "target_dir": "targets_distortion",
-        "dsp_func": lambda x: tube_saturator(x, drive=100.0, asymmetry=0.4, tone=3000),
+        "dsp_func": lambda x: tube_saturator(x, drive=100.0, asymmetry=0.4, tone=5000.0),
     },
 }
 
@@ -111,8 +111,7 @@ for effect, config in EFFECTS.items():
         model_name = f"{effect}_tcn_c{channels}_l{layers}_k{kernel}"
         final_model_path = os.path.join(SWEEP_OUT_DIR, f"{model_name}.pt")
 
-        if 1:
-            # if not os.path.exists(final_model_path):
+        if not os.path.exists(final_model_path):
             if BENCHMARK_ONLY:
                 print(
                     f"\n--- Missing {model_name}.pt; skipping (benchmark-only mode) ---"

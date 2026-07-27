@@ -244,7 +244,7 @@ def _build_models_config(project_models_dir, effect_mode, quant_bits=0, compare_
     ]
 
 
-def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant_bits=0, compare_all_quant=False):
+def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant_bits=0, compare_all_quant=False, custom_model_path=None):
     if output_dir is None:
         output_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
 
@@ -256,12 +256,28 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
     test_durations = [1.0, 5.0, 10.0, 30.0]
 
     project_models_dir = os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoints')
-    models_config = _build_models_config(
-        project_models_dir,
-        effect_mode,
-        quant_bits=quant_bits,
-        compare_all_quant=compare_all_quant,
-    )
+    
+    if custom_model_path:
+        if 'lstm' in custom_model_path: model_type = 'lstm'
+        elif 'crnn' in custom_model_path: model_type = 'crnn'
+        elif 'unet' in custom_model_path: model_type = 'unet'
+        else: model_type = 'tcn'
+        
+        models_config = [{
+            "name": os.path.basename(custom_model_path),
+            "path": custom_model_path,
+            "model_type": model_type,
+            "quant_bits": quant_bits,
+            "active": True,
+            "color": "navy",
+        }]
+    else:
+        models_config = _build_models_config(
+            project_models_dir,
+            effect_mode,
+            quant_bits=quant_bits,
+            compare_all_quant=compare_all_quant,
+        )
 
     try:
         y_full, sr = librosa.load(input_file, sr=None)
@@ -284,9 +300,9 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
     wrappers = {}
 
     if effect_mode == "distortion":
-        dsp_wrapper = DSPWrapper(tube_saturator, drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr))
+        dsp_wrapper = DSPWrapper(tube_saturator, drive=100.0, asymmetry=0.4, tone=5000.0, fs=int(sr))
         wrappers["DSP baseline"] = dsp_wrapper
-        wrappers["DSP RT"] = RealtimeDSPWrapper(RealtimeTubeSaturator(drive=70.0, asymmetry=0.4, tone=5000, fs=int(sr)))
+        wrappers["DSP RT"] = RealtimeDSPWrapper(RealtimeTubeSaturator(drive=100.0, asymmetry=0.4, tone=5000.0, fs=int(sr)))
     elif effect_mode == "flange":
         dsp_wrapper = DSPWrapper(flanger_effect, rate=0.5, center_delay=2.5, ff=0.7, fb=0.2, fs=int(sr))
         wrappers["DSP baseline"] = dsp_wrapper
@@ -537,19 +553,29 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run phase1 benchmark for flanger/distortion/wah/reverb models")
     parser.add_argument("--effect", choices=["flange", "distortion", "wah", "reverb", "exciter"], default="flange", help="Select effect/model mapping")
+    parser.add_argument("--model_path", type=str, default=None, help="Path to a specific model to benchmark. If provided, effect can be inferred from the filename.")
     parser.add_argument("--input_file", type=str, default=None, help="Filename in ../raw_sound_files/ to benchmark. If omitted, uses built-in defaults.")
     parser.add_argument("--quant_bits", type=int, default=0, help="Set to 16/8/4 to benchmark a specific quantized TCN")
     parser.add_argument("--compare_all", action="store_true", help="Load all available quantized variants (16, 8, 4-bit) for comparison in a single run")
     args = parser.parse_args()
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    
+    effect_mode = args.effect
+    if args.model_path:
+        model_basename = os.path.basename(args.model_path).lower()
+        for valid_effect in ["flange", "distortion", "wah", "reverb", "exciter"]:
+            if valid_effect in model_basename:
+                effect_mode = valid_effect
+                print(f"Inferred effect mode '{effect_mode}' from model filename.")
+                break
 
     if args.input_file:
         test_file = os.path.join(project_root, "..", "raw_sound_files", args.input_file)
         if not os.path.exists(test_file):
             print(f"Input file not found: {test_file}")
             sys.exit(1)
-        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
+        run_benchmark_suite(test_file, effect_mode=effect_mode, quant_bits=args.quant_bits, compare_all_quant=args.compare_all, custom_model_path=args.model_path)
         sys.exit(0)
 
     test_file_name = "../raw_sound_files/funk-soul-guitar-clean-4_90bpm_G.wav"
@@ -564,12 +590,12 @@ if __name__ == "__main__":
         sf.write(test_file, y, sr)
         print(f"Generated synthetic file at {test_file}")
 
-    run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
+    run_benchmark_suite(test_file, effect_mode=effect_mode, quant_bits=args.quant_bits, compare_all_quant=args.compare_all, custom_model_path=args.model_path)
 
     test_file_2_name = "../raw_sound_files/romantic-electric-guitar-riff-mixed_143bpm_F#_minor.wav"
     test_file_2 = os.path.join(project_root, test_file_2_name)
     if os.path.exists(test_file_2):
-        run_benchmark_suite(test_file_2, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
+        run_benchmark_suite(test_file_2, effect_mode=effect_mode, quant_bits=args.quant_bits, compare_all_quant=args.compare_all, custom_model_path=args.model_path)
     else:
         print(f"Skipping second benchmark — file not found: {test_file_2}")
-        run_benchmark_suite(test_file, effect_mode=args.effect, quant_bits=args.quant_bits, compare_all_quant=args.compare_all)
+        run_benchmark_suite(test_file, effect_mode=effect_mode, quant_bits=args.quant_bits, compare_all_quant=args.compare_all, custom_model_path=args.model_path)
