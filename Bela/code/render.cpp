@@ -65,55 +65,139 @@ struct ExperimentConfig {
 	unsigned int inferenceChunkFrames = 0;
 };
 
-constexpr int kConv1Out = 16;
-constexpr int kKernelSize = 3;
-
-static const float conv1_w[kConv1Out][kKernelSize] = {
-	{ 0.644592285f, 0.533045709f, 1.05618882f },
-	{ 0.841638207f, 1.20650136f, 0.484849036f },
-	{ 0.47314477f, -0.162172526f, -0.00907641649f },
-	{ 0.0513471365f, -0.554325521f, 0.172708333f },
-	{ 0.112497091f, 0.0691599846f, -0.559089601f },
-	{ -0.153777197f, -0.585065305f, -0.376663148f },
-	{ 0.371859968f, 0.140536308f, -0.559399128f },
-	{ 0.340878069f, -0.426355064f, 0.338769138f },
-	{ 0.629515827f, 0.995258927f, 1.52625501f },
-	{ 1.04953897f, 1.29734933f, 1.05061269f },
-	{ 1.60446501f, 0.525971055f, 0.949755192f },
-	{ -0.530482829f, -1.32829392f, -1.09715736f },
-	{ 0.0214586854f, -0.343939543f, 0.280881107f },
-	{ -0.105528556f, -1.26699495f, -1.27791333f },
-	{ -1.35419369f, -1.12423193f, -0.694253623f },
-	{ -0.699474514f, -1.21688926f, -1.30189013f }
+struct SweepConfig {
+	bool enabled = false;
+	std::string csvPrefix = "results/sweep";
 };
 
-static const float conv1_b[kConv1Out] = {
-	0.0652296096f, 0.0847290233f, -0.346418917f, -0.518137693f,
-	-0.474925846f, -0.290601343f, -0.48009038f, -0.279593319f,
-	-0.0470745601f, -0.0541700311f, 0.118892558f, -0.0853675157f,
-	-0.405216485f, -0.0708813891f, 0.116002999f, 0.0637843609f
+struct SweepCase {
+	const char* name;
+	ExecutionMode executionMode;
+	HistoryMode historyMode;
+	ScratchMode scratchMode;
+	unsigned int inferenceChunkFrames;
 };
 
-static const float conv2_w[kConv1Out][kKernelSize] = {
-	{ 0.600854933f, 0.223445401f, 0.392813891f },
-	{ 0.921911418f, 0.644353986f, 0.628558874f },
-	{ 0.0919911116f, 0.00436902046f, 0.0830723196f },
-	{ 0.0454472303f, -0.123378508f, 0.133147031f },
-	{ -0.0539488941f, -0.0504148304f, -0.105675921f },
-	{ 0.201495975f, -0.128252253f, -0.19852151f },
-	{ 0.0683611929f, -0.050033398f, -0.126710922f },
-	{ -0.0552411675f, 0.10406217f, 0.00633007288f },
-	{ -1.00763011f, -0.967031956f, -0.621490121f },
-	{ -0.553512871f, -0.690842211f, -0.677569807f },
-	{ 0.920573592f, 0.632871032f, 0.587244153f },
-	{ 0.872034132f, 0.851120293f, 0.823450565f },
-	{ -0.0996923298f, 0.0607897639f, 0.109512061f },
-	{ 0.771921873f, 0.598700762f, 0.605151772f },
-	{ -0.751569152f, -0.418815106f, -0.254063308f },
-	{ -1.11805892f, -0.670774639f, -0.783497453f }
+static const SweepCase kSweepCases[] = {
+	{ "naive_control", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 0 },
+	{ "fused_only", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 0 },
+	{ "circular_only", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 0 },
+	{ "persistent_only", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 0 },
+	{ "all_combined", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 0 }
 };
 
-static const float conv2_b = -0.0959965885f;
+constexpr size_t kSweepCaseCount = sizeof(kSweepCases) / sizeof(kSweepCases[0]);
+
+constexpr int kNumConvLayers = 2;
+constexpr int kHiddenChannels = 8;
+constexpr int kKernelSize = 5;
+constexpr int kMaxHistory = (kKernelSize - 1) * 2;
+
+static const int kDilations[kNumConvLayers] = { 1, 2 };
+
+static const float conv0_w[kHiddenChannels][1][kKernelSize] = {
+    { { -0.7646027394f, -0.1384194614f, 0.1450108644f, 0.8371081715f, 0.5800434574f } },
+    { { 1.961103469f, 0.5542248935f, -0.4902758673f, -1.193715155f, -2.707175441f } },
+    { { -3.474359926f, -2.161216017f, -0.5471432954f, -0.2462144829f, 0.3282859772f } },
+    { { 3.945326775f, 3.186610088f, 1.365690038f, 0.2276150063f, -4.817850966f } },
+    { { 1.652460294f, 0.5725059286f, -0.8847818896f, -1.105977362f, -0.4033564497f } },
+    { { 0.7153965952f, 0.5576713616f, 0.2140556742f, -0.2703861147f, -0.07886261679f } },
+    { { -0.3777914867f, -0.2518609911f, 0.06868936121f, 0.8128241077f, 1.453924812f } },
+    { { 0.7153318822f, 0.2771911044f, -0.2950744014f, -0.152008025f, -1.135589363f } }
+};
+static const float conv1_w[kHiddenChannels][kHiddenChannels][kKernelSize] = {
+    {
+        { 0.1190085383f, -0.03173561022f, -0.1110746358f, -0.0872729281f, 0.142810246f },
+        { -0.5474392762f, -0.2062814664f, 0.1507441485f, 0.7616546452f, 0.1269424409f },
+        { 0.3014882971f, -0.1824797587f, -0.09520683065f, -0.142810246f, 0.1666119536f },
+        { -1.007605624f, 0.2459509792f, 0.6426461069f, 0.6664478146f, -0.5474392762f },
+        { -0.1824797587f, 0.1110746358f, -0.03966951277f, 0.142810246f, -0.07933902554f },
+        { 0.0872729281f, 0.03966951277f, 0.1745458562f, 0.01586780511f, 0.1507441485f },
+        { 0.142810246f, 0.1190085383f, 0.1586780511f, -0.01586780511f, -0.04760341533f },
+        { -0.06347122043f, -0.1190085383f, 0.0872729281f, -0.01586780511f, 0.03966951277f }
+    },
+    {
+        { 0.0f, 0.1400370849f, -0.06535063963f, -0.1307012793f, -0.0746864453f },
+        { -0.3267531982f, 0.02800741699f, 0.009335805662f, -0.03734322265f, -1.185647319f },
+        { 0.2800741699f, -0.08402225096f, 0.06535063963f, -0.08402225096f, -0.3174173925f },
+        { -0.1213654736f, 0.578819951f, 0.2427309472f, 0.1400370849f, -0.9522521775f },
+        { -0.1307012793f, 0.1773803076f, -0.1773803076f, -0.02800741699f, 0.01867161132f },
+        { 0.1120296679f, 0.04667902831f, 0.1213654736f, -0.01867161132f, -0.1400370849f },
+        { -0.06535063963f, 0.09335805662f, -0.01867161132f, 0.09335805662f, 0.05601483397f },
+        { -0.1213654736f, 0.05601483397f, -0.1307012793f, -0.05601483397f, -0.1120296679f }
+    },
+    {
+        { -0.05411375687f, -0.04509479739f, -0.1533223111f, 0.02705687843f, -0.09920855425f },
+        { -1.001104502f, -0.2795877438f, 0.4599669334f, 1.145407854f, 0.2164550275f },
+        { 0.414872136f, -0.4238910954f, -0.4509479739f, -0.07215167582f, 0.1713602301f },
+        { -0.9469907451f, 0.8658201098f, 0.9109149072f, 0.8026873935f, -0.7305357177f },
+        { -0.02705687843f, -0.009018959478f, -0.02705687843f, 0.04509479739f, 0.1623412706f },
+        { 0.0f, 0.1533223111f, -0.07215167582f, 0.01803791896f, -0.1803791896f },
+        { 0.009018959478f, -0.06313271634f, -0.03607583791f, -0.1533223111f, 0.01803791896f },
+        { -0.09920855425f, -0.06313271634f, -0.009018959478f, -0.009018959478f, -0.1172464732f }
+    },
+    {
+        { 0.1164821126f, 0.08320150897f, -0.1331224144f, -0.1164821126f, 0.1164821126f },
+        { -0.2995254323f, 0.64897177f, 0.5324896574f, 0.1497627161f, -2.113318328f },
+        { 0.06656120718f, -0.2496045269f, 0.1664030179f, 0.3494463377f, 0.1164821126f },
+        { 0.2828851305f, 1.064979315f, 0.5324896574f, -0.2662448287f, -1.614109274f },
+        { -0.03328060359f, 0.06656120718f, 0.04992090538f, 0.0f, -0.01664030179f },
+        { -0.01664030179f, 0.1664030179f, 0.1331224144f, -0.03328060359f, -0.1164821126f },
+        { 0.0f, 0.1331224144f, -0.1497627161f, 0.08320150897f, 0.1996836215f },
+        { -0.1331224144f, 0.06656120718f, 0.04992090538f, -0.09984181076f, -0.03328060359f }
+    },
+    {
+        { -0.03084708238f, 0.2035907437f, 0.1912519108f, 0.2251837014f, 0.1789130778f },
+        { 0.1388118707f, 0.04627062357f, -0.2220989931f, 0.1573201201f, -0.388673238f },
+        { 0.1418965789f, -0.1048800801f, 0.1203036213f, 0.05552474828f, -0.2868778661f },
+        { -0.1326424542f, 0.2313531179f, -0.1017953719f, 0.1388118707f, -0.3917579462f },
+        { 0.03084708238f, 0.03393179062f, -0.01233883295f, -0.0246776659f, 0.1511507037f },
+        { -0.1141342048f, 0.07711770595f, 0.09254124714f, 0.05860945652f, 0.1480659954f },
+        { -0.02159295767f, -0.05244004005f, -0.06169416476f, 0.003084708238f, 0.1388118707f },
+        { -0.1480659954f, -0.1141342048f, -0.1850824943f, -0.09871066362f, -0.1388118707f }
+    },
+    {
+        { 0.006953307427f, 0.02781322971f, -0.09734630398f, -0.09734630398f, 0.0764863817f },
+        { 0.5701712091f, 0.02085992228f, -0.09039299656f, -0.06257976685f, 0.8830700433f },
+        { -0.1182062263f, 0.1042996114f, 0.146019456f, -0.09734630398f, 0.09734630398f },
+        { 0.3754786011f, -0.4311050605f, -0.5562645942f, -0.1390661485f, 0.6883774353f },
+        { 0.06257976685f, -0.03476653714f, -0.006953307427f, 0.146019456f, -0.1321128411f },
+        { -0.08343968913f, 0.0f, 0.03476653714f, 0.1529727634f, -0.01390661485f },
+        { -0.1738326857f, 0.09734630398f, 0.06257976685f, -0.06953307427f, -0.02085992228f },
+        { -0.06257976685f, 0.1042996114f, -0.09734630398f, 0.08343968913f, -0.02085992228f }
+    },
+    {
+        { -0.03476306074f, 0.0588297951f, 0.112311427f, -0.08022244787f, -0.1016151006f },
+        { 0.06952612149f, 0.09359285585f, 0.3396083626f, -0.005348163191f, 0.264734078f },
+        { 0.06417795829f, 0.1149855086f, -0.2326450988f, 0.1230077534f, -0.1016151006f },
+        { -0.1283559166f, -0.02139265276f, 0.2085783645f, -0.1952079565f, 0.1363781614f },
+        { -0.02406673436f, -0.09091877425f, 0.08289652946f, -0.05615571351f, 0.03743714234f },
+        { 0.1337040798f, -0.01069632638f, 0.1684671405f, 0.04545938713f, 0.1337040798f },
+        { 0.0588297951f, -0.05080755032f, -0.01337040798f, 0.03208897915f, 0.01871857117f },
+        { 0.02674081596f, -0.04813346872f, -0.01604448957f, -0.04278530553f, 0.112311427f }
+    },
+    {
+        { 0.1341606462f, 0.1032004971f, -0.0928804474f, 0.02064009942f, -0.06192029826f },
+        { -1.05264507f, -0.6501631318f, -0.1857608948f, 0.9081643745f, 0.3715217896f },
+        { 0.5985628832f, -0.1444806959f, -0.2064009942f, -0.1857608948f, 0.05160024855f },
+        { -1.310646313f, 0.4231220381f, 0.5882428335f, 0.9700846728f, -0.6192029826f },
+        { -0.3612017399f, -0.2270410936f, 0.04128019884f, 0.06192029826f, 0.3096014913f },
+        { -0.0928804474f, -0.1135205468f, 0.03096014913f, 0.03096014913f, 0.03096014913f },
+        { 0.03096014913f, 0.1032004971f, -0.03096014913f, -0.01032004971f, 0.01032004971f },
+        { -0.05160024855f, 0.1341606462f, 0.1135205468f, 0.06192029826f, 0.0f }
+    }
+};
+static const float conv_b[kNumConvLayers][kHiddenChannels] = {
+    { -0.2737801567f, -0.008838878078f, 0.009667944312f, 0.002145026576f, -0.002881555312f, -0.04583922602f, -0.009709850046f, 0.2886511905f },
+    { 0.0563939255f, 0.0110842365f, 0.03481889316f, 0.1074190703f, -0.1393902266f, -0.01350409294f, 0.006349779313f, -0.1065426633f },
+};
+static const float final_w[kHiddenChannels] = { -0.007946970873f, 0.09337690775f, 0.05165531067f, 0.1827803301f, 0.2423826116f, -0.01986742718f, 0.0f, 0.2523163252f };
+static const float final_b = 0.1286791038f;
+static const float conv_input_scales[kNumConvLayers] = { 0.004711962122f, 0.007862796464f };
+static const float conv_output_scales[kNumConvLayers] = { 0.02852800512f, 0.04233029133f };
+static const float tanh_output_scales[kNumConvLayers] = { 0.007862796464f, 0.007873678771f };
+static const float final_output_scale = 0.005644102266f;
+
 
 struct BenchmarkRow {
 	uint32_t modelNs = 0;
@@ -170,10 +254,7 @@ struct BenchmarkState {
 };
 
 struct ShiftChannelState {
-	float x1 = 0.0f;
-	float x2 = 0.0f;
-	float a1[kConv1Out];
-	float a2[kConv1Out];
+	float history[kNumConvLayers][kMaxHistory][kHiddenChannels];
 
 	ShiftChannelState()
 	{
@@ -182,39 +263,37 @@ struct ShiftChannelState {
 
 	void reset()
 	{
-		x1 = 0.0f;
-		x2 = 0.0f;
-		for(int i = 0; i < kConv1Out; ++i) {
-			a1[i] = 0.0f;
-			a2[i] = 0.0f;
+		for(int layer = 0; layer < kNumConvLayers; ++layer) {
+			for(int delay = 0; delay < kMaxHistory; ++delay) {
+				for(int channel = 0; channel < kHiddenChannels; ++channel) {
+					history[layer][delay][channel] = 0.0f;
+	}
 		}
 	}
-
-	float prevInput1() const { return x1; }
-	float prevInput2() const { return x2; }
-	float prevActivation1(int idx) const { return a1[idx]; }
-	float prevActivation2(int idx) const { return a2[idx]; }
-
-	void pushInput(float sample)
-	{
-		x2 = x1;
-		x1 = sample;
 	}
 
-	void pushActivation(const float* values)
+	float previous(int layer, int channel, int delay) const
 	{
-		for(int i = 0; i < kConv1Out; ++i) {
-			a2[i] = a1[i];
-			a1[i] = values[i];
+		return history[layer][delay - 1][channel];
+	}
+
+	void push(int layer, const float* values, int channels)
+	{
+		const int length = (kKernelSize - 1) * kDilations[layer];
+		for(int delay = length - 1; delay > 0; --delay) {
+			for(int channel = 0; channel < channels; ++channel) {
+				history[layer][delay][channel] = history[layer][delay - 1][channel];
+			}
+		}
+		for(int channel = 0; channel < channels; ++channel) {
+			history[layer][0][channel] = values[channel];
 		}
 	}
 };
 
 struct CircularChannelState {
-	float xHist[3];
-	float aHist[3][kConv1Out];
-	unsigned int xHead = 0;
-	unsigned int aHead = 0;
+	float history[kNumConvLayers][kMaxHistory][kHiddenChannels];
+	unsigned int heads[kNumConvLayers] = {};
 
 	CircularChannelState()
 	{
@@ -223,32 +302,29 @@ struct CircularChannelState {
 
 	void reset()
 	{
-		xHead = 0;
-		aHead = 0;
-		for(int i = 0; i < 3; ++i) {
-			xHist[i] = 0.0f;
-			for(int c = 0; c < kConv1Out; ++c) {
-				aHist[i][c] = 0.0f;
+		for(int layer = 0; layer < kNumConvLayers; ++layer) {
+			heads[layer] = 0;
+			for(int delay = 0; delay < kMaxHistory; ++delay) {
+				for(int channel = 0; channel < kHiddenChannels; ++channel) {
+					history[layer][delay][channel] = 0.0f;
+				}
 			}
 		}
 	}
 
-	float prevInput1() const { return xHist[xHead]; }
-	float prevInput2() const { return xHist[(xHead + 2) % 3]; }
-	float prevActivation1(int idx) const { return aHist[aHead][idx]; }
-	float prevActivation2(int idx) const { return aHist[(aHead + 2) % 3][idx]; }
-
-	void pushInput(float sample)
+	float previous(int layer, int channel, int delay) const
 	{
-		xHead = (xHead + 1) % 3;
-		xHist[xHead] = sample;
+		const int length = (kKernelSize - 1) * kDilations[layer];
+		const int index = (int(heads[layer]) + length - (delay - 1)) % length;
+		return history[layer][index][channel];
 	}
 
-	void pushActivation(const float* values)
+	void push(int layer, const float* values, int channels)
 	{
-		aHead = (aHead + 1) % 3;
-		for(int i = 0; i < kConv1Out; ++i) {
-			aHist[aHead][i] = values[i];
+		const int length = (kKernelSize - 1) * kDilations[layer];
+		heads[layer] = (heads[layer] + 1) % length;
+		for(int channel = 0; channel < channels; ++channel) {
+			history[layer][heads[layer]][channel] = values[channel];
 		}
 	}
 };
@@ -428,6 +504,36 @@ static bool parseScratchMode(const std::string& value, ScratchMode& out)
 	return false;
 }
 
+static inline float quantizeDequantize(float value, float scale)
+{
+	const float q = std::max(-128.0f, std::min(127.0f, std::round(value / scale)));
+	return q * scale;
+}
+
+template <typename StateT>
+static inline void computeLayer(
+	int layer,
+	const float* layerInput,
+	int inputChannels,
+	StateT& state,
+	float* layerOutput
+)
+{
+	for(int out = 0; out < kHiddenChannels; ++out) {
+		float z = conv_b[layer][out];
+		for(int in = 0; in < inputChannels; ++in) {
+			const float* weights = layer == 0 ? conv0_w[out][in] : conv1_w[out][in];
+			z += weights[0] * layerInput[in];
+			for(int tap = 1; tap < kKernelSize; ++tap) {
+				z += weights[tap]
+					* state.previous(layer, in, tap * kDilations[layer]);
+			}
+		}
+		const float quantizedConv = quantizeDequantize(z, conv_output_scales[layer]);
+		layerOutput[out] = quantizeDequantize(std::tanh(quantizedConv), tanh_output_scales[layer]);
+	}
+}
+
 template <typename StateT>
 class FusedStreamingProcessor : public TCNProcessor {
 public:
@@ -454,25 +560,24 @@ public:
 		for(size_t ch = 0; ch < states_.size(); ++ch) {
 			StateT& state = states_[ch];
 			for(unsigned int frame = 0; frame < frames; ++frame) {
-				const float x0 = input[ch][startFrame + frame] * inputGain;
-				float a0[kConv1Out];
-				for(int c = 0; c < kConv1Out; ++c) {
-					const float z = conv1_b[c]
-						+ conv1_w[c][0] * x0
-						+ conv1_w[c][1] * state.prevInput1()
-						+ conv1_w[c][2] * state.prevInput2();
-					a0[c] = relu(z);
+				float layerInput[kHiddenChannels] = {};
+				float layerOutput[kHiddenChannels] = {};
+				layerInput[0] = quantizeDequantize(input[ch][startFrame + frame] * inputGain, conv_input_scales[0]);
+
+				for(int layer = 0; layer < kNumConvLayers; ++layer) {
+					const int inputChannels = layer == 0 ? 1 : kHiddenChannels;
+					computeLayer(layer, layerInput, inputChannels, state, layerOutput);
+					state.push(layer, layerInput, inputChannels);
+					for(int channel = 0; channel < kHiddenChannels; ++channel) {
+						layerInput[channel] = layerOutput[channel];
+					}
 				}
 
-				float y = conv2_b;
-				for(int c = 0; c < kConv1Out; ++c) {
-					y += conv2_w[c][0] * a0[c]
-						+ conv2_w[c][1] * state.prevActivation1(c)
-						+ conv2_w[c][2] * state.prevActivation2(c);
+				float y = final_b;
+				for(int channel = 0; channel < kHiddenChannels; ++channel) {
+					y += final_w[channel] * layerInput[channel];
 				}
-
-				state.pushInput(x0);
-				state.pushActivation(a0);
+				y = quantizeDequantize(y, final_output_scale);
 				output[ch][startFrame + frame] = applyOutputPostprocess(y, outputGain, clipOutput);
 			}
 		}
@@ -499,7 +604,7 @@ public:
 	{
 		states_.assign(channels, StateT());
 		if(scratchMode_ == ScratchMode::Persistent) {
-			scratch_.assign((size_t)maxChunkFrames * (size_t)kConv1Out, 0.0f);
+			scratch_.assign((size_t)maxChunkFrames * (size_t)kNumConvLayers * (size_t)kHiddenChannels, 0.0f);
 		} else {
 			scratch_.clear();
 		}
@@ -520,28 +625,31 @@ public:
 			std::vector<float>& scratch = prepareScratch(localScratch, frames);
 			StateT& state = states_[ch];
 
-			for(unsigned int frame = 0; frame < frames; ++frame) {
-				const float x0 = input[ch][startFrame + frame] * inputGain;
-				float* a0 = &scratch[(size_t)frame * (size_t)kConv1Out];
-				for(int c = 0; c < kConv1Out; ++c) {
-					const float z = conv1_b[c]
-						+ conv1_w[c][0] * x0
-						+ conv1_w[c][1] * state.prevInput1()
-						+ conv1_w[c][2] * state.prevInput2();
-					a0[c] = relu(z);
+			for(int layer = 0; layer < kNumConvLayers; ++layer) {
+				const int inputChannels = layer == 0 ? 1 : kHiddenChannels;
+				for(unsigned int frame = 0; frame < frames; ++frame) {
+					float layerInput[kHiddenChannels] = {};
+					if(layer == 0) {
+						layerInput[0] = quantizeDequantize(input[ch][startFrame + frame] * inputGain, conv_input_scales[0]);
+					} else {
+						const float* previous = &scratch[((size_t)(layer - 1) * frames + frame) * kHiddenChannels];
+						for(int channel = 0; channel < kHiddenChannels; ++channel) {
+							layerInput[channel] = previous[channel];
+						}
+					}
+					float* current = &scratch[((size_t)layer * frames + frame) * kHiddenChannels];
+					computeLayer(layer, layerInput, inputChannels, state, current);
+					state.push(layer, layerInput, inputChannels);
 				}
-				state.pushInput(x0);
 			}
 
 			for(unsigned int frame = 0; frame < frames; ++frame) {
-				const float* a0 = &scratch[(size_t)frame * (size_t)kConv1Out];
-				float y = conv2_b;
-				for(int c = 0; c < kConv1Out; ++c) {
-					y += conv2_w[c][0] * a0[c]
-						+ conv2_w[c][1] * state.prevActivation1(c)
-						+ conv2_w[c][2] * state.prevActivation2(c);
+				const float* last = &scratch[((size_t)(kNumConvLayers - 1) * frames + frame) * kHiddenChannels];
+				float y = final_b;
+				for(int channel = 0; channel < kHiddenChannels; ++channel) {
+					y += final_w[channel] * last[channel];
 				}
-				state.pushActivation(a0);
+				y = quantizeDequantize(y, final_output_scale);
 				output[ch][startFrame + frame] = applyOutputPostprocess(y, outputGain, clipOutput);
 			}
 		}
@@ -550,7 +658,7 @@ public:
 private:
 	std::vector<float>& prepareScratch(std::vector<float>& localScratch, unsigned int frames)
 	{
-		const size_t required = (size_t)frames * (size_t)kConv1Out;
+		const size_t required = (size_t)frames * (size_t)kNumConvLayers * (size_t)kHiddenChannels;
 		if(scratchMode_ == ScratchMode::Persistent) {
 			if(scratch_.size() < required) {
 				scratch_.resize(required, 0.0f);
@@ -571,8 +679,11 @@ AppConfig gAppConfig;
 BenchmarkConfig gBenchConfig;
 RuntimeConfig gRuntimeConfig;
 ExperimentConfig gExperimentConfig;
+SweepConfig gSweepConfig;
 BenchmarkState gBenchState;
 std::unique_ptr<TCNProcessor> gProcessor;
+std::vector<std::unique_ptr<TCNProcessor>> gSweepProcessors;
+std::vector<BenchmarkState> gSweepStates;
 std::vector<std::vector<float>> gSamples;
 std::vector<std::vector<float>> gOutput;
 unsigned int gReadPtr = 0;
@@ -661,29 +772,29 @@ static uint64_t readProcessRssKb()
 	return 0;
 }
 
-static void resetBenchmarkState(uint64_t estimatedBlocks, double blockBudgetNs)
+static void resetBenchmarkState(BenchmarkState& state, uint64_t estimatedBlocks, double blockBudgetNs)
 {
-	gBenchState = BenchmarkState();
-	gBenchState.blockBudgetNs = blockBudgetNs;
+	state = BenchmarkState();
+	state.blockBudgetNs = blockBudgetNs;
 
 	if(!gBenchConfig.enabled) {
 		return;
 	}
 
 	if(gBenchConfig.recordPerBlockRows) {
-		gBenchState.rows.reserve(estimatedBlocks);
+		state.rows.reserve(estimatedBlocks);
 	}
-	gBenchState.modelNs.reserve(estimatedBlocks);
-	gBenchState.blockNs.reserve(estimatedBlocks);
+	state.modelNs.reserve(estimatedBlocks);
+	state.blockNs.reserve(estimatedBlocks);
 
 	if(gBenchConfig.sampleSystemCpu) {
-		gBenchState.totalMemoryKb = readTotalMemoryKb();
+		state.totalMemoryKb = readTotalMemoryKb();
 		const uint64_t estimatedSamples = (gBenchConfig.cpuSampleEveryBlocks > 0)
 			? ((estimatedBlocks + gBenchConfig.cpuSampleEveryBlocks - 1) / gBenchConfig.cpuSampleEveryBlocks)
 			: 0;
-		gBenchState.systemCpuPct.reserve(estimatedSamples);
-		gBenchState.processMemoryPct.reserve(estimatedSamples);
-		gBenchState.processRssMb.reserve(estimatedSamples);
+		state.systemCpuPct.reserve(estimatedSamples);
+		state.processMemoryPct.reserve(estimatedSamples);
+		state.processRssMb.reserve(estimatedSamples);
 		(void)readSystemCpuUsagePct();
 	}
 }
@@ -709,15 +820,15 @@ static bool isWarmupBlock(uint64_t blockIndex)
 	return blockIndex < gBenchConfig.warmupBlocks;
 }
 
-static void recordBenchmarkBlock(uint64_t modelNs, uint64_t blockNs, unsigned int framesProcessed)
+static void recordBenchmarkBlock(BenchmarkState& state, uint64_t modelNs, uint64_t blockNs, unsigned int framesProcessed)
 {
 	if(!gBenchConfig.enabled) {
 		return;
 	}
 
-	const uint64_t blockIndex = gBenchState.blocksSeen++;
+	const uint64_t blockIndex = state.blocksSeen++;
 	const bool warmup = isWarmupBlock(blockIndex);
-	const bool overrun = (gBenchState.blockBudgetNs > 0.0) && ((double)blockNs > gBenchState.blockBudgetNs);
+	const bool overrun = (state.blockBudgetNs > 0.0) && ((double)blockNs > state.blockBudgetNs);
 	if(gBenchConfig.recordPerBlockRows) {
 		BenchmarkRow row;
 		row.modelNs = clampToU32(modelNs);
@@ -726,17 +837,17 @@ static void recordBenchmarkBlock(uint64_t modelNs, uint64_t blockNs, unsigned in
 		row.overrun = overrun ? 1 : 0;
 		row.warmup = warmup ? 1 : 0;
 
-		gBenchState.rows.push_back(row);
+		state.rows.push_back(row);
 	}
 
 	if(warmup) {
 		return;
 	}
 
-	gBenchState.modelNs.push_back(modelNs);
-	gBenchState.blockNs.push_back(blockNs);
-	updateRunStats(gBenchState.model, modelNs, (gBenchState.blockBudgetNs > 0.0) && ((double)modelNs > gBenchState.blockBudgetNs));
-	updateRunStats(gBenchState.block, blockNs, overrun);
+	state.modelNs.push_back(modelNs);
+	state.blockNs.push_back(blockNs);
+	updateRunStats(state.model, modelNs, (state.blockBudgetNs > 0.0) && ((double)modelNs > state.blockBudgetNs));
+	updateRunStats(state.block, blockNs, overrun);
 }
 
 static double percentileFromSorted(const std::vector<uint64_t>& sortedValues, double fraction)
@@ -787,7 +898,7 @@ static void computeJitterStats(
 	avgAbsJitterNs = totalAbsDelta / (double)(values.size() - 1);
 }
 
-static CompletedStats computeCompletedStats(const std::vector<uint64_t>& values, const RunStats& runStats)
+static CompletedStats computeCompletedStats(const std::vector<uint64_t>& values, const RunStats& runStats, double blockBudgetNs)
 {
 	CompletedStats out;
 	if(values.empty() || runStats.count == 0) {
@@ -809,9 +920,9 @@ static CompletedStats computeCompletedStats(const std::vector<uint64_t>& values,
 
 	computeJitterStats(values, out.avgAbsJitterNs, out.maxAbsJitterNs);
 
-	if(gBenchState.blockBudgetNs > 0.0) {
-		out.avgBudgetPct = 100.0 * out.avgNs / gBenchState.blockBudgetNs;
-		out.maxBudgetPct = 100.0 * out.maxNs / gBenchState.blockBudgetNs;
+	if(blockBudgetNs > 0.0) {
+		out.avgBudgetPct = 100.0 * out.avgNs / blockBudgetNs;
+		out.maxBudgetPct = 100.0 * out.maxNs / blockBudgetNs;
 	}
 
 	return out;
@@ -858,20 +969,20 @@ static void printCompletedStats(const char* label, const CompletedStats& stats)
 	);
 }
 
-static void printMonitorSummary()
+static void printMonitorSummary(const BenchmarkState& state)
 {
 	if(!gBenchConfig.sampleSystemCpu) {
 		return;
 	}
 
-	const MonitorStats cpuStats = computeMonitorStats(gBenchState.systemCpuPct);
-	const MonitorStats memPctStats = computeMonitorStats(gBenchState.processMemoryPct);
-	const MonitorStats rssStats = computeMonitorStats(gBenchState.processRssMb);
+	const MonitorStats cpuStats = computeMonitorStats(state.systemCpuPct);
+	const MonitorStats memPctStats = computeMonitorStats(state.processMemoryPct);
+	const MonitorStats rssStats = computeMonitorStats(state.processRssMb);
 
 	rt_printf("\n--- Processor monitor summary ---\n");
-	rt_printf("Samples: %zu, every %" PRIu64 " block(s)\n", gBenchState.systemCpuPct.size(), gBenchConfig.cpuSampleEveryBlocks);
+	rt_printf("Samples: %zu, every %" PRIu64 " block(s)\n", state.systemCpuPct.size(), gBenchConfig.cpuSampleEveryBlocks);
 
-	if(gBenchState.systemCpuPct.empty()) {
+	if(state.systemCpuPct.empty()) {
 		rt_printf("No processor monitor samples collected\n");
 		return;
 	}
@@ -890,7 +1001,7 @@ static void printMonitorSummary()
 		rssStats.max
 	);
 
-	if(!gBenchState.processMemoryPct.empty()) {
+	if(!state.processMemoryPct.empty()) {
 		rt_printf(
 			"Process memory avg %.2f%%, p95 %.2f%%, max %.2f%% of RAM\n",
 			memPctStats.avg,
@@ -1010,6 +1121,12 @@ static bool loadConfigFile()
 		} else if(key == "experiment.inference_chunk_frames" && parseUInt(value, uintValue)) {
 			gExperimentConfig.inferenceChunkFrames = uintValue;
 			handled = true;
+		} else if(key == "sweep.enabled" && parseBool(value, boolValue)) {
+			gSweepConfig.enabled = boolValue;
+			handled = true;
+		} else if(key == "sweep.csv_prefix") {
+			gSweepConfig.csvPrefix = value;
+			handled = true;
 		}
 
 		if(!handled) {
@@ -1020,19 +1137,24 @@ static bool loadConfigFile()
 	return true;
 }
 
-static std::unique_ptr<TCNProcessor> makeProcessor()
+static std::unique_ptr<TCNProcessor> makeProcessor(const ExperimentConfig& config)
 {
-	if(gExperimentConfig.executionMode == ExecutionMode::FusedStreaming) {
-		if(gExperimentConfig.historyMode == HistoryMode::Shift) {
+	if(config.executionMode == ExecutionMode::FusedStreaming) {
+		if(config.historyMode == HistoryMode::Shift) {
 			return std::unique_ptr<TCNProcessor>(new FusedStreamingProcessor<ShiftChannelState>());
 		}
 		return std::unique_ptr<TCNProcessor>(new FusedStreamingProcessor<CircularChannelState>());
 	}
 
-	if(gExperimentConfig.historyMode == HistoryMode::Shift) {
-		return std::unique_ptr<TCNProcessor>(new LayeredBlockProcessor<ShiftChannelState>(gExperimentConfig.scratchMode));
+	if(config.historyMode == HistoryMode::Shift) {
+		return std::unique_ptr<TCNProcessor>(new LayeredBlockProcessor<ShiftChannelState>(config.scratchMode));
 	}
-	return std::unique_ptr<TCNProcessor>(new LayeredBlockProcessor<CircularChannelState>(gExperimentConfig.scratchMode));
+	return std::unique_ptr<TCNProcessor>(new LayeredBlockProcessor<CircularChannelState>(config.scratchMode));
+}
+
+static std::unique_ptr<TCNProcessor> makeProcessor()
+{
+	return makeProcessor(gExperimentConfig);
 }
 
 static void printExperimentSummary(unsigned int callbackFrames)
@@ -1068,26 +1190,58 @@ bool setup(BelaContext *context, void *userData)
 		gOutput[ch].resize(gSamples[ch].size(), 0.0f);
 	}
 
-	gProcessor = makeProcessor();
-	if(!gProcessor) {
-		rt_printf("Failed to create processor\n");
-		return false;
-	}
-
-	const unsigned int chunkFrames = (gExperimentConfig.inferenceChunkFrames == 0)
-		? context->audioFrames
-		: gExperimentConfig.inferenceChunkFrames;
-	gProcessor->reset(gSamples.size(), chunkFrames);
-	gReadPtr = 0;
-
 	const uint64_t totalFrames = gSamples.empty() ? 0 : (uint64_t)gSamples[0].size();
 	const uint64_t framesPerBlock = context->audioFrames ? (uint64_t)context->audioFrames : 0;
 	const uint64_t estimatedBlocks = framesPerBlock ? (totalFrames + framesPerBlock - 1) / framesPerBlock : 0;
 	const double blockBudgetNs = (context->audioSampleRate > 0.0 && context->audioFrames > 0)
 		? ((double)context->audioFrames / context->audioSampleRate) * 1e9
 		: 0.0;
-	resetBenchmarkState(estimatedBlocks, blockBudgetNs);
-	printExperimentSummary(context->audioFrames);
+	gReadPtr = 0;
+
+	if(gSweepConfig.enabled) {
+		// All processors are created and reset during setup. This keeps the sweep
+		// from allocating or changing processor state on Bela's real-time thread.
+		gBenchConfig.enabled = true;
+		gBenchConfig.writeCsv = true;
+		gAppConfig.writeOutputFile = false;
+		gAppConfig.writeAudioToOutputs = false;
+		gSweepProcessors.clear();
+		gSweepProcessors.reserve(kSweepCaseCount);
+		gSweepStates.resize(kSweepCaseCount);
+
+		for(size_t i = 0; i < kSweepCaseCount; ++i) {
+			ExperimentConfig config;
+			config.executionMode = kSweepCases[i].executionMode;
+			config.historyMode = kSweepCases[i].historyMode;
+			config.scratchMode = kSweepCases[i].scratchMode;
+			config.inferenceChunkFrames = kSweepCases[i].inferenceChunkFrames;
+			std::unique_ptr<TCNProcessor> processor = makeProcessor(config);
+			if(!processor) {
+				rt_printf("Failed to create sweep processor %s\n", kSweepCases[i].name);
+				return false;
+			}
+			const unsigned int chunkFrames = config.inferenceChunkFrames == 0
+				? context->audioFrames
+				: config.inferenceChunkFrames;
+			processor->reset(gSamples.size(), chunkFrames);
+			gSweepProcessors.push_back(std::move(processor));
+			resetBenchmarkState(gSweepStates[i], estimatedBlocks, blockBudgetNs);
+		}
+		rt_printf("\n--- Sweep enabled: %zu cases ---\n", kSweepCaseCount);
+		rt_printf("Sweep CSV prefix: %s\n", gSweepConfig.csvPrefix.c_str());
+	} else {
+		gProcessor = makeProcessor();
+		if(!gProcessor) {
+			rt_printf("Failed to create processor\n");
+			return false;
+		}
+		const unsigned int chunkFrames = (gExperimentConfig.inferenceChunkFrames == 0)
+			? context->audioFrames
+			: gExperimentConfig.inferenceChunkFrames;
+		gProcessor->reset(gSamples.size(), chunkFrames);
+		resetBenchmarkState(gBenchState, estimatedBlocks, blockBudgetNs);
+		printExperimentSummary(context->audioFrames);
+	}
 
 	return true;
 }
@@ -1096,6 +1250,46 @@ void render(BelaContext *context, void *userData)
 {
 	if(gSamples.empty() || gSamples[0].empty()) {
 		if(gRuntimeConfig.stopWhenInputEnds) {
+			Bela_requestStop();
+		}
+		return;
+	}
+
+	if(gSweepConfig.enabled) {
+		const unsigned int nFramesTotal = (unsigned int)gSamples[0].size();
+		const unsigned int startFrame = gReadPtr;
+		unsigned int framesProcessed = 0;
+
+		for(size_t i = 0; i < kSweepCaseCount; ++i) {
+			const unsigned int chunkFrames = kSweepCases[i].inferenceChunkFrames == 0
+				? context->audioFrames
+				: kSweepCases[i].inferenceChunkFrames;
+			unsigned int caseFramesProcessed = 0;
+			const uint64_t blockStart = nsNow();
+			const uint64_t modelStart = nsNow();
+			while(caseFramesProcessed < context->audioFrames && startFrame + caseFramesProcessed < nFramesTotal) {
+				const unsigned int framesLeftInCallback = context->audioFrames - caseFramesProcessed;
+				const unsigned int framesLeftInInput = nFramesTotal - startFrame - caseFramesProcessed;
+				const unsigned int currentChunk = std::min(chunkFrames, std::min(framesLeftInCallback, framesLeftInInput));
+				gSweepProcessors[i]->processChunk(
+					gSamples,
+					gOutput,
+					startFrame + caseFramesProcessed,
+					currentChunk,
+					gAppConfig.inputGain,
+					gAppConfig.outputGain,
+					gAppConfig.clipOutput
+				);
+				caseFramesProcessed += currentChunk;
+			}
+			const uint64_t modelEnd = nsNow();
+			const uint64_t blockEnd = nsNow();
+			recordBenchmarkBlock(gSweepStates[i], modelEnd - modelStart, blockEnd - blockStart, caseFramesProcessed);
+			framesProcessed = caseFramesProcessed;
+		}
+
+		gReadPtr += framesProcessed;
+		if(gReadPtr >= nFramesTotal && gRuntimeConfig.stopWhenInputEnds) {
 			Bela_requestStop();
 		}
 		return;
@@ -1143,7 +1337,7 @@ void render(BelaContext *context, void *userData)
 	if(gBenchConfig.enabled) {
 		const uint64_t modelEnd = nsNow();
 		const uint64_t blockEnd = nsNow();
-		recordBenchmarkBlock(modelEnd - modelStart, blockEnd - blockStart, framesProcessed);
+		recordBenchmarkBlock(gBenchState, modelEnd - modelStart, blockEnd - blockStart, framesProcessed);
 	}
 
 	if(gAppConfig.writeAudioToOutputs && framesProcessed < context->audioFrames) {
@@ -1157,9 +1351,65 @@ void render(BelaContext *context, void *userData)
 	}
 }
 
+static void writeBenchmarkCsv(
+	const BenchmarkState& state,
+	const ExperimentConfig& config,
+	const std::string& csvFile,
+	unsigned int callbackFrames
+)
+{
+	if(!gBenchConfig.writeCsv) {
+		return;
+	}
+
+	FILE* f = fopen(csvFile.c_str(), "w");
+	if(!f) {
+		rt_printf("WARNING: could not open %s for writing\n", csvFile.c_str());
+		return;
+	}
+
+	// Keep benchmark data row-oriented and append configuration columns so the
+	// CSV can be loaded directly by tools such as pandas.
+	fprintf(
+		f,
+		"block_idx,model_ns,block_ns,frames_processed,overrun,warmup,"
+		"execution_mode,history_mode,scratch_mode,inference_chunk_frames,effective_chunk_frames"
+	);
+	if(gBenchConfig.sampleSystemCpu) {
+		fprintf(f, ",syscpu_x100,process_rss_kb");
+	}
+	fprintf(f, "\n");
+
+	for(size_t i = 0; i < state.rows.size(); ++i) {
+		const BenchmarkRow& row = state.rows[i];
+		fprintf(
+			f,
+			"%zu,%u,%u,%u,%u,%u,%s,%s,%s,%u,%u",
+			i,
+			row.modelNs,
+			row.blockNs,
+			row.framesProcessed,
+			(unsigned)row.overrun,
+			(unsigned)row.warmup,
+			executionModeName(config.executionMode),
+			historyModeName(config.historyMode),
+			scratchModeName(config.scratchMode),
+			config.inferenceChunkFrames,
+			config.inferenceChunkFrames == 0 ? callbackFrames : config.inferenceChunkFrames
+		);
+		if(gBenchConfig.sampleSystemCpu) {
+			fprintf(f, ",%u,%u", (unsigned)row.sysCpu_x100, row.memRssKb);
+		}
+		fprintf(f, "\n");
+	}
+
+	fclose(f);
+	rt_printf("Wrote benchmark CSV: %s (%zu rows)\n", csvFile.c_str(), state.rows.size());
+}
+
 void cleanup(BelaContext *context, void *userData)
 {
-	if(gAppConfig.writeOutputFile) {
+	if(!gSweepConfig.enabled && gAppConfig.writeOutputFile) {
 		AudioFileUtilities::write(gAppConfig.outputFile, gOutput, context->audioSampleRate);
 		rt_printf("Wrote output audio: %s\n", gAppConfig.outputFile.c_str());
 	}
@@ -1168,54 +1418,44 @@ void cleanup(BelaContext *context, void *userData)
 		return;
 	}
 
-	const CompletedStats modelStats = computeCompletedStats(gBenchState.modelNs, gBenchState.model);
-	const CompletedStats blockStats = computeCompletedStats(gBenchState.blockNs, gBenchState.block);
+	if(gSweepConfig.enabled) {
+		for(size_t i = 0; i < kSweepCaseCount; ++i) {
+			ExperimentConfig config;
+			config.executionMode = kSweepCases[i].executionMode;
+			config.historyMode = kSweepCases[i].historyMode;
+			config.scratchMode = kSweepCases[i].scratchMode;
+			config.inferenceChunkFrames = kSweepCases[i].inferenceChunkFrames;
+			const CompletedStats modelStats = computeCompletedStats(
+				gSweepStates[i].modelNs, gSweepStates[i].model, gSweepStates[i].blockBudgetNs
+			);
+			const CompletedStats blockStats = computeCompletedStats(
+				gSweepStates[i].blockNs, gSweepStates[i].block, gSweepStates[i].blockBudgetNs
+			);
+			rt_printf("\n--- Sweep case: %s ---\n", kSweepCases[i].name);
+			printCompletedStats("Model", modelStats);
+			printCompletedStats("Block", blockStats);
+			printMonitorSummary(gSweepStates[i]);
+			const std::string csvFile = gSweepConfig.csvPrefix + "_" + kSweepCases[i].name + ".csv";
+			writeBenchmarkCsv(gSweepStates[i], config, csvFile, context->audioFrames);
+		}
+		return;
+	}
+
+	const CompletedStats modelStats = computeCompletedStats(
+		gBenchState.modelNs, gBenchState.model, gBenchState.blockBudgetNs
+	);
+	const CompletedStats blockStats = computeCompletedStats(
+		gBenchState.blockNs, gBenchState.block, gBenchState.blockBudgetNs
+	);
 
 	rt_printf("\n--- Benchmark summary ---\n");
 	rt_printf("Processor: %s\n", gProcessor ? gProcessor->name() : "none");
 	rt_printf("Blocks seen: %" PRIu64 "\n", gBenchState.blocksSeen);
 	rt_printf("Measured blocks: %" PRIu64 "\n", gBenchState.block.count);
 	rt_printf("Warmup blocks skipped: %" PRIu64 "\n", gBenchConfig.warmupBlocks);
-	rt_printf(
-		"Block budget: %.0f ns (%.3f ms)\n",
-		gBenchState.blockBudgetNs,
-		gBenchState.blockBudgetNs / 1e6
-	);
+	rt_printf("Block budget: %.0f ns (%.3f ms)\n", gBenchState.blockBudgetNs, gBenchState.blockBudgetNs / 1e6);
 	printCompletedStats("Model", modelStats);
 	printCompletedStats("Block", blockStats);
-	printMonitorSummary();
-
-	if(gBenchConfig.writeCsv) {
-		FILE* f = fopen(gBenchConfig.csvFile.c_str(), "w");
-		if(f) {
-			fprintf(f, "block_idx,model_ns,block_ns,frames_processed,overrun,warmup");
-			if(gBenchConfig.sampleSystemCpu) {
-				fprintf(f, ",syscpu_x100,process_rss_kb");
-			}
-			fprintf(f, "\n");
-
-			for(size_t i = 0; i < gBenchState.rows.size(); ++i) {
-				const BenchmarkRow& row = gBenchState.rows[i];
-				fprintf(
-					f,
-					"%zu,%u,%u,%u,%u,%u",
-					i,
-					row.modelNs,
-					row.blockNs,
-					row.framesProcessed,
-					(unsigned)row.overrun,
-					(unsigned)row.warmup
-				);
-				if(gBenchConfig.sampleSystemCpu) {
-					fprintf(f, ",%u,%u", (unsigned)row.sysCpu_x100, row.memRssKb);
-				}
-				fprintf(f, "\n");
-			}
-
-			fclose(f);
-			rt_printf("Wrote benchmark CSV: %s (%zu rows)\n", gBenchConfig.csvFile.c_str(), gBenchState.rows.size());
-		} else {
-			rt_printf("WARNING: could not open %s for writing\n", gBenchConfig.csvFile.c_str());
-		}
-	}
+	printMonitorSummary(gBenchState);
+	writeBenchmarkCsv(gBenchState, gExperimentConfig, gBenchConfig.csvFile, context->audioFrames);
 }
