@@ -79,124 +79,82 @@ struct SweepCase {
 };
 
 static const SweepCase kSweepCases[] = {
-	{ "naive_control", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 0 },
-	{ "fused_only", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 0 },
-	{ "circular_only", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 0 },
-	{ "persistent_only", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 0 },
-	{ "all_combined", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 0 }
+	{ "naive_chunk1", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 1 },
+	{ "naive_chunk2", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 2 },
+	{ "naive_chunk4", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 4 },
+	{ "naive_chunk8", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 8 },
+	{ "naive_chunk16", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::PerChunk, 16 },
+	{ "fused_chunk1", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 1 },
+	{ "fused_chunk2", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 2 },
+	{ "fused_chunk4", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 4 },
+	{ "fused_chunk8", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 8 },
+	{ "fused_chunk16", ExecutionMode::FusedStreaming, HistoryMode::Shift, ScratchMode::PerChunk, 16 },
+	{ "circular_chunk1", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 1 },
+	{ "circular_chunk2", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 2 },
+	{ "circular_chunk4", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 4 },
+	{ "circular_chunk8", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 8 },
+	{ "circular_chunk16", ExecutionMode::LayeredBlock, HistoryMode::Circular, ScratchMode::PerChunk, 16 },
+	{ "persistent_chunk1", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 1 },
+	{ "persistent_chunk2", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 2 },
+	{ "persistent_chunk4", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 4 },
+	{ "persistent_chunk8", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 8 },
+	{ "persistent_chunk16", ExecutionMode::LayeredBlock, HistoryMode::Shift, ScratchMode::Persistent, 16 },
+	{ "combined_chunk1", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 1 },
+	{ "combined_chunk2", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 2 },
+	{ "combined_chunk4", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 4 },
+	{ "combined_chunk8", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 8 },
+	{ "combined_chunk16", ExecutionMode::FusedStreaming, HistoryMode::Circular, ScratchMode::Persistent, 16 }
 };
 
 constexpr size_t kSweepCaseCount = sizeof(kSweepCases) / sizeof(kSweepCases[0]);
 
 constexpr int kNumConvLayers = 2;
-constexpr int kHiddenChannels = 8;
-constexpr int kKernelSize = 5;
-constexpr int kMaxHistory = (kKernelSize - 1) * 2;
-
-static const int kDilations[kNumConvLayers] = { 1, 2 };
+constexpr int kHiddenChannels = 16;
+constexpr int kKernelSize = 3;
+constexpr int kMaxHistory = 2;
+static const int kDilations[kNumConvLayers] = { 1, 1 };
 
 static const float conv0_w[kHiddenChannels][1][kKernelSize] = {
-    { { -0.7646027394f, -0.1384194614f, 0.1450108644f, 0.8371081715f, 0.5800434574f } },
-    { { 1.961103469f, 0.5542248935f, -0.4902758673f, -1.193715155f, -2.707175441f } },
-    { { -3.474359926f, -2.161216017f, -0.5471432954f, -0.2462144829f, 0.3282859772f } },
-    { { 3.945326775f, 3.186610088f, 1.365690038f, 0.2276150063f, -4.817850966f } },
-    { { 1.652460294f, 0.5725059286f, -0.8847818896f, -1.105977362f, -0.4033564497f } },
-    { { 0.7153965952f, 0.5576713616f, 0.2140556742f, -0.2703861147f, -0.07886261679f } },
-    { { -0.3777914867f, -0.2518609911f, 0.06868936121f, 0.8128241077f, 1.453924812f } },
-    { { 0.7153318822f, 0.2771911044f, -0.2950744014f, -0.152008025f, -1.135589363f } }
-};
-static const float conv1_w[kHiddenChannels][kHiddenChannels][kKernelSize] = {
-    {
-        { 0.1190085383f, -0.03173561022f, -0.1110746358f, -0.0872729281f, 0.142810246f },
-        { -0.5474392762f, -0.2062814664f, 0.1507441485f, 0.7616546452f, 0.1269424409f },
-        { 0.3014882971f, -0.1824797587f, -0.09520683065f, -0.142810246f, 0.1666119536f },
-        { -1.007605624f, 0.2459509792f, 0.6426461069f, 0.6664478146f, -0.5474392762f },
-        { -0.1824797587f, 0.1110746358f, -0.03966951277f, 0.142810246f, -0.07933902554f },
-        { 0.0872729281f, 0.03966951277f, 0.1745458562f, 0.01586780511f, 0.1507441485f },
-        { 0.142810246f, 0.1190085383f, 0.1586780511f, -0.01586780511f, -0.04760341533f },
-        { -0.06347122043f, -0.1190085383f, 0.0872729281f, -0.01586780511f, 0.03966951277f }
-    },
-    {
-        { 0.0f, 0.1400370849f, -0.06535063963f, -0.1307012793f, -0.0746864453f },
-        { -0.3267531982f, 0.02800741699f, 0.009335805662f, -0.03734322265f, -1.185647319f },
-        { 0.2800741699f, -0.08402225096f, 0.06535063963f, -0.08402225096f, -0.3174173925f },
-        { -0.1213654736f, 0.578819951f, 0.2427309472f, 0.1400370849f, -0.9522521775f },
-        { -0.1307012793f, 0.1773803076f, -0.1773803076f, -0.02800741699f, 0.01867161132f },
-        { 0.1120296679f, 0.04667902831f, 0.1213654736f, -0.01867161132f, -0.1400370849f },
-        { -0.06535063963f, 0.09335805662f, -0.01867161132f, 0.09335805662f, 0.05601483397f },
-        { -0.1213654736f, 0.05601483397f, -0.1307012793f, -0.05601483397f, -0.1120296679f }
-    },
-    {
-        { -0.05411375687f, -0.04509479739f, -0.1533223111f, 0.02705687843f, -0.09920855425f },
-        { -1.001104502f, -0.2795877438f, 0.4599669334f, 1.145407854f, 0.2164550275f },
-        { 0.414872136f, -0.4238910954f, -0.4509479739f, -0.07215167582f, 0.1713602301f },
-        { -0.9469907451f, 0.8658201098f, 0.9109149072f, 0.8026873935f, -0.7305357177f },
-        { -0.02705687843f, -0.009018959478f, -0.02705687843f, 0.04509479739f, 0.1623412706f },
-        { 0.0f, 0.1533223111f, -0.07215167582f, 0.01803791896f, -0.1803791896f },
-        { 0.009018959478f, -0.06313271634f, -0.03607583791f, -0.1533223111f, 0.01803791896f },
-        { -0.09920855425f, -0.06313271634f, -0.009018959478f, -0.009018959478f, -0.1172464732f }
-    },
-    {
-        { 0.1164821126f, 0.08320150897f, -0.1331224144f, -0.1164821126f, 0.1164821126f },
-        { -0.2995254323f, 0.64897177f, 0.5324896574f, 0.1497627161f, -2.113318328f },
-        { 0.06656120718f, -0.2496045269f, 0.1664030179f, 0.3494463377f, 0.1164821126f },
-        { 0.2828851305f, 1.064979315f, 0.5324896574f, -0.2662448287f, -1.614109274f },
-        { -0.03328060359f, 0.06656120718f, 0.04992090538f, 0.0f, -0.01664030179f },
-        { -0.01664030179f, 0.1664030179f, 0.1331224144f, -0.03328060359f, -0.1164821126f },
-        { 0.0f, 0.1331224144f, -0.1497627161f, 0.08320150897f, 0.1996836215f },
-        { -0.1331224144f, 0.06656120718f, 0.04992090538f, -0.09984181076f, -0.03328060359f }
-    },
-    {
-        { -0.03084708238f, 0.2035907437f, 0.1912519108f, 0.2251837014f, 0.1789130778f },
-        { 0.1388118707f, 0.04627062357f, -0.2220989931f, 0.1573201201f, -0.388673238f },
-        { 0.1418965789f, -0.1048800801f, 0.1203036213f, 0.05552474828f, -0.2868778661f },
-        { -0.1326424542f, 0.2313531179f, -0.1017953719f, 0.1388118707f, -0.3917579462f },
-        { 0.03084708238f, 0.03393179062f, -0.01233883295f, -0.0246776659f, 0.1511507037f },
-        { -0.1141342048f, 0.07711770595f, 0.09254124714f, 0.05860945652f, 0.1480659954f },
-        { -0.02159295767f, -0.05244004005f, -0.06169416476f, 0.003084708238f, 0.1388118707f },
-        { -0.1480659954f, -0.1141342048f, -0.1850824943f, -0.09871066362f, -0.1388118707f }
-    },
-    {
-        { 0.006953307427f, 0.02781322971f, -0.09734630398f, -0.09734630398f, 0.0764863817f },
-        { 0.5701712091f, 0.02085992228f, -0.09039299656f, -0.06257976685f, 0.8830700433f },
-        { -0.1182062263f, 0.1042996114f, 0.146019456f, -0.09734630398f, 0.09734630398f },
-        { 0.3754786011f, -0.4311050605f, -0.5562645942f, -0.1390661485f, 0.6883774353f },
-        { 0.06257976685f, -0.03476653714f, -0.006953307427f, 0.146019456f, -0.1321128411f },
-        { -0.08343968913f, 0.0f, 0.03476653714f, 0.1529727634f, -0.01390661485f },
-        { -0.1738326857f, 0.09734630398f, 0.06257976685f, -0.06953307427f, -0.02085992228f },
-        { -0.06257976685f, 0.1042996114f, -0.09734630398f, 0.08343968913f, -0.02085992228f }
-    },
-    {
-        { -0.03476306074f, 0.0588297951f, 0.112311427f, -0.08022244787f, -0.1016151006f },
-        { 0.06952612149f, 0.09359285585f, 0.3396083626f, -0.005348163191f, 0.264734078f },
-        { 0.06417795829f, 0.1149855086f, -0.2326450988f, 0.1230077534f, -0.1016151006f },
-        { -0.1283559166f, -0.02139265276f, 0.2085783645f, -0.1952079565f, 0.1363781614f },
-        { -0.02406673436f, -0.09091877425f, 0.08289652946f, -0.05615571351f, 0.03743714234f },
-        { 0.1337040798f, -0.01069632638f, 0.1684671405f, 0.04545938713f, 0.1337040798f },
-        { 0.0588297951f, -0.05080755032f, -0.01337040798f, 0.03208897915f, 0.01871857117f },
-        { 0.02674081596f, -0.04813346872f, -0.01604448957f, -0.04278530553f, 0.112311427f }
-    },
-    {
-        { 0.1341606462f, 0.1032004971f, -0.0928804474f, 0.02064009942f, -0.06192029826f },
-        { -1.05264507f, -0.6501631318f, -0.1857608948f, 0.9081643745f, 0.3715217896f },
-        { 0.5985628832f, -0.1444806959f, -0.2064009942f, -0.1857608948f, 0.05160024855f },
-        { -1.310646313f, 0.4231220381f, 0.5882428335f, 0.9700846728f, -0.6192029826f },
-        { -0.3612017399f, -0.2270410936f, 0.04128019884f, 0.06192029826f, 0.3096014913f },
-        { -0.0928804474f, -0.1135205468f, 0.03096014913f, 0.03096014913f, 0.03096014913f },
-        { 0.03096014913f, 0.1032004971f, -0.03096014913f, -0.01032004971f, 0.01032004971f },
-        { -0.05160024855f, 0.1341606462f, 0.1135205468f, 0.06192029826f, 0.0f }
-    }
+    { { 0.644592285f, 0.533045709f, 1.05618882f } },
+    { { 0.841638207f, 1.20650136f, 0.484849036f } },
+    { { 0.47314477f, -0.162172526f, -0.00907641649f } },
+    { { 0.0513471365f, -0.554325521f, 0.172708333f } },
+    { { 0.112497091f, 0.0691599846f, -0.559089601f } },
+    { { -0.153777197f, -0.585065305f, -0.376663148f } },
+    { { 0.371859968f, 0.140536308f, -0.559399128f } },
+    { { 0.340878069f, -0.426355064f, 0.338769138f } },
+    { { 0.629515827f, 0.995258927f, 1.52625501f } },
+    { { 1.04953897f, 1.29734933f, 1.05061269f } },
+    { { 1.60446501f, 0.525971055f, 0.949755192f } },
+    { { -0.530482829f, -1.32829392f, -1.09715736f } },
+    { { 0.0214586854f, -0.343939543f, 0.280881107f } },
+    { { -0.105528556f, -1.26699495f, -1.27791333f } },
+    { { -1.35419369f, -1.12423193f, -0.694253623f } },
+    { { -0.699474514f, -1.21688926f, -1.30189013f } },
 };
 static const float conv_b[kNumConvLayers][kHiddenChannels] = {
-    { -0.2737801567f, -0.008838878078f, 0.009667944312f, 0.002145026576f, -0.002881555312f, -0.04583922602f, -0.009709850046f, 0.2886511905f },
-    { 0.0563939255f, 0.0110842365f, 0.03481889316f, 0.1074190703f, -0.1393902266f, -0.01350409294f, 0.006349779313f, -0.1065426633f },
+    { 0.0652296096f, 0.0847290233f, -0.346418917f, -0.518137693f, -0.474925846f, -0.290601343f, -0.48009038f, -0.279593319f, -0.0470745601f, -0.0541700311f, 0.118892558f, -0.0853675157f, -0.405216485f, -0.0708813891f, 0.116002999f, 0.0637843609f },
+    { 0.0f },
 };
-static const float final_w[kHiddenChannels] = { -0.007946970873f, 0.09337690775f, 0.05165531067f, 0.1827803301f, 0.2423826116f, -0.01986742718f, 0.0f, 0.2523163252f };
-static const float final_b = 0.1286791038f;
-static const float conv_input_scales[kNumConvLayers] = { 0.004711962122f, 0.007862796464f };
-static const float conv_output_scales[kNumConvLayers] = { 0.02852800512f, 0.04233029133f };
-static const float tanh_output_scales[kNumConvLayers] = { 0.007862796464f, 0.007873678771f };
-static const float final_output_scale = 0.005644102266f;
+static const float final_w[kHiddenChannels][kKernelSize] = {
+    { 0.600854933f, 0.223445401f, 0.392813891f },
+    { 0.921911418f, 0.644353986f, 0.628558874f },
+    { 0.0919911116f, 0.00436902046f, 0.0830723196f },
+    { 0.0454472303f, -0.123378508f, 0.133147031f },
+    { -0.0539488941f, -0.0504148304f, -0.105675921f },
+    { 0.201495975f, -0.128252253f, -0.19852151f },
+    { 0.0683611929f, -0.050033398f, -0.126710922f },
+    { -0.0552411675f, 0.10406217f, 0.00633007288f },
+    { -1.00763011f, -0.967031956f, -0.621490121f },
+    { -0.553512871f, -0.690842211f, -0.677569807f },
+    { 0.920573592f, 0.632871032f, 0.587244153f },
+    { 0.872034132f, 0.851120293f, 0.823450565f },
+    { -0.0996923298f, 0.0607897639f, 0.109512061f },
+    { 0.771921873f, 0.598700762f, 0.605151772f },
+    { -0.751569152f, -0.418815106f, -0.254063308f },
+    { -1.11805892f, -0.670774639f, -0.783497453f },
+};
+static const float final_b = -0.0959965885f;
 
 
 struct BenchmarkRow {
@@ -504,34 +462,33 @@ static bool parseScratchMode(const std::string& value, ScratchMode& out)
 	return false;
 }
 
-static inline float quantizeDequantize(float value, float scale)
-{
-	const float q = std::max(-128.0f, std::min(127.0f, std::round(value / scale)));
-	return q * scale;
-}
-
 template <typename StateT>
-static inline void computeLayer(
-	int layer,
-	const float* layerInput,
-	int inputChannels,
+static inline void computeHiddenLayer(
+	const float* input,
 	StateT& state,
-	float* layerOutput
+	float* output
 )
 {
 	for(int out = 0; out < kHiddenChannels; ++out) {
-		float z = conv_b[layer][out];
-		for(int in = 0; in < inputChannels; ++in) {
-			const float* weights = layer == 0 ? conv0_w[out][in] : conv1_w[out][in];
-			z += weights[0] * layerInput[in];
-			for(int tap = 1; tap < kKernelSize; ++tap) {
-				z += weights[tap]
-					* state.previous(layer, in, tap * kDilations[layer]);
-			}
+		float z = conv_b[0][out] + conv0_w[out][0][0] * input[0];
+		for(int tap = 1; tap < kKernelSize; ++tap) {
+			z += conv0_w[out][0][tap] * state.previous(0, 0, tap);
 		}
-		const float quantizedConv = quantizeDequantize(z, conv_output_scales[layer]);
-		layerOutput[out] = quantizeDequantize(std::tanh(quantizedConv), tanh_output_scales[layer]);
+		output[out] = relu(z);
 	}
+}
+
+template <typename StateT>
+static inline float computeOutput(const float* hidden, StateT& state)
+{
+	float y = final_b;
+	for(int channel = 0; channel < kHiddenChannels; ++channel) {
+		y += final_w[channel][0] * hidden[channel];
+		for(int tap = 1; tap < kKernelSize; ++tap) {
+			y += final_w[channel][tap] * state.previous(1, channel, tap);
+		}
+	}
+	return y;
 }
 
 template <typename StateT>
@@ -560,24 +517,12 @@ public:
 		for(size_t ch = 0; ch < states_.size(); ++ch) {
 			StateT& state = states_[ch];
 			for(unsigned int frame = 0; frame < frames; ++frame) {
-				float layerInput[kHiddenChannels] = {};
-				float layerOutput[kHiddenChannels] = {};
-				layerInput[0] = quantizeDequantize(input[ch][startFrame + frame] * inputGain, conv_input_scales[0]);
-
-				for(int layer = 0; layer < kNumConvLayers; ++layer) {
-					const int inputChannels = layer == 0 ? 1 : kHiddenChannels;
-					computeLayer(layer, layerInput, inputChannels, state, layerOutput);
-					state.push(layer, layerInput, inputChannels);
-					for(int channel = 0; channel < kHiddenChannels; ++channel) {
-						layerInput[channel] = layerOutput[channel];
-					}
-				}
-
-				float y = final_b;
-				for(int channel = 0; channel < kHiddenChannels; ++channel) {
-					y += final_w[channel] * layerInput[channel];
-				}
-				y = quantizeDequantize(y, final_output_scale);
+				const float x = input[ch][startFrame + frame] * inputGain;
+				float hidden[kHiddenChannels] = {};
+				computeHiddenLayer(&x, state, hidden);
+				state.push(0, &x, 1);
+				const float y = computeOutput(hidden, state);
+				state.push(1, hidden, kHiddenChannels);
 				output[ch][startFrame + frame] = applyOutputPostprocess(y, outputGain, clipOutput);
 			}
 		}
@@ -604,7 +549,7 @@ public:
 	{
 		states_.assign(channels, StateT());
 		if(scratchMode_ == ScratchMode::Persistent) {
-			scratch_.assign((size_t)maxChunkFrames * (size_t)kNumConvLayers * (size_t)kHiddenChannels, 0.0f);
+			scratch_.assign((size_t)maxChunkFrames * (size_t)kHiddenChannels, 0.0f);
 		} else {
 			scratch_.clear();
 		}
@@ -625,31 +570,17 @@ public:
 			std::vector<float>& scratch = prepareScratch(localScratch, frames);
 			StateT& state = states_[ch];
 
-			for(int layer = 0; layer < kNumConvLayers; ++layer) {
-				const int inputChannels = layer == 0 ? 1 : kHiddenChannels;
-				for(unsigned int frame = 0; frame < frames; ++frame) {
-					float layerInput[kHiddenChannels] = {};
-					if(layer == 0) {
-						layerInput[0] = quantizeDequantize(input[ch][startFrame + frame] * inputGain, conv_input_scales[0]);
-					} else {
-						const float* previous = &scratch[((size_t)(layer - 1) * frames + frame) * kHiddenChannels];
-						for(int channel = 0; channel < kHiddenChannels; ++channel) {
-							layerInput[channel] = previous[channel];
-						}
-					}
-					float* current = &scratch[((size_t)layer * frames + frame) * kHiddenChannels];
-					computeLayer(layer, layerInput, inputChannels, state, current);
-					state.push(layer, layerInput, inputChannels);
-				}
+			for(unsigned int frame = 0; frame < frames; ++frame) {
+				const float x = input[ch][startFrame + frame] * inputGain;
+				float* hidden = &scratch[(size_t)frame * (size_t)kHiddenChannels];
+				computeHiddenLayer(&x, state, hidden);
+				state.push(0, &x, 1);
 			}
 
 			for(unsigned int frame = 0; frame < frames; ++frame) {
-				const float* last = &scratch[((size_t)(kNumConvLayers - 1) * frames + frame) * kHiddenChannels];
-				float y = final_b;
-				for(int channel = 0; channel < kHiddenChannels; ++channel) {
-					y += final_w[channel] * last[channel];
-				}
-				y = quantizeDequantize(y, final_output_scale);
+				const float* hidden = &scratch[(size_t)frame * (size_t)kHiddenChannels];
+				const float y = computeOutput(hidden, state);
+				state.push(1, hidden, kHiddenChannels);
 				output[ch][startFrame + frame] = applyOutputPostprocess(y, outputGain, clipOutput);
 			}
 		}
@@ -658,7 +589,7 @@ public:
 private:
 	std::vector<float>& prepareScratch(std::vector<float>& localScratch, unsigned int frames)
 	{
-		const size_t required = (size_t)frames * (size_t)kNumConvLayers * (size_t)kHiddenChannels;
+		const size_t required = (size_t)frames * (size_t)kHiddenChannels;
 		if(scratchMode_ == ScratchMode::Persistent) {
 			if(scratch_.size() < required) {
 				scratch_.resize(required, 0.0f);
@@ -674,6 +605,8 @@ private:
 	std::vector<StateT> states_;
 	std::vector<float> scratch_;
 };
+
+
 
 AppConfig gAppConfig;
 BenchmarkConfig gBenchConfig;
