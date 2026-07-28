@@ -187,7 +187,13 @@ def _build_checkpoint_tag(args):
 
 
 def train(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif args.model_type == "tcn" and args.quant_bits > 0:
+        # Brevitas calls tensor.rename() (named tensors), which MPS does not implement.
+        device = torch.device("cpu")
+    else:
+        device = torch.device("mps")
     print(f"Using device: {device}")
 
     print("Loading dataset...")
