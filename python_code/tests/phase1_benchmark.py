@@ -351,9 +351,11 @@ def run_benchmark_suite(input_file, output_dir=None, effect_mode="flange", quant
 
             def process(self, block):
                 high_passed, self.zi1 = signal.lfilter(self.b, self.a, block, zi=self.zi1)
-                generated_harmonics = np.tanh(self.drive * high_passed)
+                sidechain_boosted = high_passed * 8.0
+                generated_harmonics = np.tanh(self.drive * sidechain_boosted)
                 clean_harmonics, self.zi2 = signal.lfilter(self.b, self.a, generated_harmonics, zi=self.zi2)
-                return block + (self.mix * clean_harmonics)
+                scaled_harmonics = clean_harmonics * 0.4
+                return block + (self.mix * scaled_harmonics)
 
         wrappers["DSP RT"] = RealtimeDSPWrapper(RealtimeExciter(fs=int(sr)))
 
