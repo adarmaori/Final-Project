@@ -112,7 +112,9 @@ def _build_mrstft_loss():
     return _FallbackMRSTFTLoss()
 
 
-def _audio_training_loss(pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0, loss_type="all"):
+def _audio_training_loss(
+    pred, target, mrstft_loss, alpha=10.0, diff_alpha=50.0, loss_type="all"
+):
     """
     Tri-Band Audio Loss.
     1. STFT: Learns the general frequency balance.
@@ -187,6 +189,7 @@ def _build_checkpoint_tag(args):
 
 
 def train(args):
+<<<<<<< Updated upstream
     if torch.cuda.is_available():
         device = torch.device("cuda")
     elif args.model_type == "tcn" and args.quant_bits > 0:
@@ -194,6 +197,15 @@ def train(args):
         device = torch.device("cpu")
     else:
         device = torch.device("mps")
+=======
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.mps.is_available()
+        else "cpu"
+    )
+>>>>>>> Stashed changes
     print(f"Using device: {device}")
 
     print("Loading dataset...")
@@ -247,7 +259,9 @@ def train(args):
             if args.context_size > 0:
                 outputs = outputs[..., args.context_size :]
 
-            loss = _audio_training_loss(outputs, targets, mrstft_loss, loss_type=args.loss_type)
+            loss = _audio_training_loss(
+                outputs, targets, mrstft_loss, loss_type=args.loss_type
+            )
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
             optimizer.step()
@@ -265,7 +279,9 @@ def train(args):
                 if args.context_size > 0:
                     outputs = outputs[..., args.context_size :]
 
-                loss = _audio_training_loss(outputs, targets, mrstft_loss, loss_type=args.loss_type)
+                loss = _audio_training_loss(
+                    outputs, targets, mrstft_loss, loss_type=args.loss_type
+                )
                 val_loss += loss.item()
 
         avg_train_loss = running_loss / len(train_loader)
@@ -322,7 +338,12 @@ if __name__ == "__main__":
         choices=["tcn", "lstm", "crnn", "unet"],
         default="unet",
     )
-    parser.add_argument("--loss_type", type=str, choices=["all", "mrstft_only", "l1_only", "l1_diff_only"], default="all")
+    parser.add_argument(
+        "--loss_type",
+        type=str,
+        choices=["all", "mrstft_only", "l1_only", "l1_diff_only"],
+        default="all",
+    )
     parser.add_argument("--quant_bits", type=int, default=0)
     parser.add_argument("--lstm_hidden_size", type=int, default=64)
     parser.add_argument("--lstm_num_layers", type=int, default=2)
@@ -354,4 +375,3 @@ if __name__ == "__main__":
         args.effect = _infer_effect_name(args.target_subdir)
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     train(args)
-
