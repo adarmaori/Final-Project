@@ -1,0 +1,8 @@
+target_device,target_package,target_freq_mhz,status,design,architecture,sample_width,weight_width,acc_width,kernel_taps,dilation,latency_cycles,steady_cycles_per_sample,finite_cycles_per_sample,steady_samples_per_sec_at_target_clock,finite_samples_per_sec_at_target_clock,max_clock_mhz,max_theoretical_samples_per_sec,total_cells,icestorm_lc,sb_lut4,sb_carry,sb_dff,sb_dffe,sb_dffsr,sb_dffesr,sb_dffess,sb_mac16,error
+--hx8k,ct256,25,ok,conv1d_basic,small,8,8,32,5,1,1,1.000000,1.005000,25000000.000000,24875621.890547,85.87,85870000.000000,148,124,67,15,0,0,1,64,0,0,
+--hx8k,ct256,25,ok,conv1d_2mult,small,8,8,32,5,1,3,3.000000,3.005000,8333333.333333,8319467.554077,106.29,35430000.000000,325,185,141,76,1,0,2,104,0,0,
+--hx8k,ct256,25,ok,conv1d_parallel_pipelined,small,8,8,32,5,1,3,1.000000,1.015000,25000000.000000,24630541.871921,137.63,137630000.000000,407,258,164,73,0,0,3,166,0,0,
+--hx8k,ct256,25,ok,conv1d_serial,small,8,8,32,5,1,5,5.000000,5.005000,5000000.000000,4995004.995005,101.25,20250000.000000,408,242,199,99,3,0,2,104,0,0,
+--hx8k,ct256,25,ok,conv1d_large_parallel,large,8,8,32,8,1,1,1.000000,1.005000,25000000.000000,24875621.890547,68.54,68540000.000000,251,220,139,22,0,0,1,88,0,0,
+--hx8k,ct256,25,ok,conv1d_large_4mult,large,8,8,32,8,1,3,3.000000,3.005000,8333333.333333,8319467.554077,53.34,17780000.000000,467,391,229,93,0,0,2,142,0,0,
+--hx8k,ct256,25,ok,conv1d_large_serial,large,8,8,32,8,1,9,9.000000,9.005000,2777777.777778,2776235.424764,58.50,6500000.000000,415,352,218,50,0,0,2,144,0,0,
