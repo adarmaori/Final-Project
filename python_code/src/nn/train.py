@@ -189,15 +189,7 @@ def _build_checkpoint_tag(args):
 
 
 def train(args):
-<<<<<<< Updated upstream
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif args.model_type == "tcn" and args.quant_bits > 0:
-        # Brevitas calls tensor.rename() (named tensors), which MPS does not implement.
-        device = torch.device("cpu")
-    else:
-        device = torch.device("mps")
-=======
+
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
@@ -205,7 +197,6 @@ def train(args):
         if torch.mps.is_available()
         else "cpu"
     )
->>>>>>> Stashed changes
     print(f"Using device: {device}")
 
     print("Loading dataset...")
@@ -297,11 +288,17 @@ def train(args):
             ckpt_path = os.path.join(
                 args.checkpoint_dir, f"{model_tag}_epoch_{epoch + 1}.pt"
             )
-            torch.save(model.state_dict(), ckpt_path)
+            state_dict = model.state_dict()
+            if args.quant_bits > 0:
+                state_dict['quant_flag'] = torch.tensor(1)
+            torch.save(state_dict, ckpt_path)
 
     model_tag = _build_checkpoint_tag(args)
     final_path = os.path.join(args.checkpoint_dir, f"{model_tag}_final.pt")
-    torch.save(model.state_dict(), final_path)
+    state_dict = model.state_dict()
+    if args.quant_bits > 0:
+        state_dict['quant_flag'] = torch.tensor(1)
+    torch.save(state_dict, final_path)
     print("Training Complete.")
 
 
