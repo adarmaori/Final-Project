@@ -24,7 +24,6 @@ The work focuses on two audio effects—distortion and exciter—and on Temporal
 │   └── models/              # Checkpoints and sweep results
 ├── Bela/                    # Bela renderers, models, and benchmark results
 ├── FPGA/                    # Verilog engines, testbenches, and reports
-├── cpp_code/                # C++ audio/benchmark artifacts
 ├── raw_sound_files/         # Source WAV material used by examples/benchmarks
 └── instructions/            # Platform and effect-specific notes
 ```
@@ -48,7 +47,7 @@ uv run python -c "import torch; print(torch.__version__); print('CUDA:', torch.c
 
 The checked-in environment on the development machine currently runs PyTorch without CUDA. Training falls back to CPU (or MPS when available in the runtime). A CUDA-enabled PyTorch installation is recommended for training.
 
-## Generate DSP targets
+## Generating DSP targets
 
 Put mono or stereo WAV files in `python_code/data/datasets/inputs/`. The generator reads WAV files directly in that directory; it does not recursively scan subdirectories. It preserves the input sample rate and writes mono targets.
 
@@ -72,9 +71,9 @@ uv run python generate_targets.py \
   --tube_tone 5000
 ```
 
-By default, targets are written to `data/datasets/targets_exciter` for `exciter` and `data/datasets/targets_distortion` for `tube`.
+By default, targets are written to `data/datasets/targets_exciter` for `exciter` and `data/datasets/targets_distortion` for `tube` (distortion).
 
-## Train a model
+## Training a model
 
 Training uses matching filenames from an input directory and a target directory.
 
