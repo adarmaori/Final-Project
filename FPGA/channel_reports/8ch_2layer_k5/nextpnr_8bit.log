@@ -1,0 +1,37 @@
+Warning: No PCF file specified; IO pins will be placed automatically
+
+Info: Packing constants..
+Info: Packing IOs..
+Info: Packing LUT-FFs..
+Info:     8826 LCs used as LUT4 only
+Info:      120 LCs used as LUT4 and DFF
+Info: Packing non-LUT FFs..
+Info:      522 LCs used as DFF only
+Info: Packing carries..
+Info:       21 LCs used as CARRY only
+Info: Packing indirect carry+LUT pairs...
+Info:       21 LUTs merged into carry LCs
+Info: Packing RAMs..
+Info: Placing PLLs..
+Info: Packing special functions..
+Info: Packing PLLs..
+Info: Promoting globals..
+Info: promoting clk$SB_IO_IN (fanout 642)
+Info: promoting rst$SB_IO_IN [reset] (fanout 642)
+Info: promoting sample_valid_SB_LUT4_I2_O [cen] (fanout 320)
+Info: promoting layer0.output_valid_SB_LUT4_I3_O [cen] (fanout 320)
+Info: Constraining chains...
+Info:       80 LCs used to legalise carry chains.
+Info: Checksum: 0x9a3a5698
+
+Info: Device utilisation:
+Info: 	         ICESTORM_LC:    9550/   7680   124%
+Info: 	        ICESTORM_RAM:       0/     32     0%
+Info: 	               SB_IO:     133/    256    51%
+Info: 	               SB_GB:       4/      8    50%
+Info: 	        ICESTORM_PLL:       0/      2     0%
+Info: 	         SB_WARMBOOT:       0/      1     0%
+
+Info: Placed 0 cells based on constraints.
+ERROR: Unable to place cell 'layer1.sample_out_SB_DFFESR_Q_16_D_SB_LUT4_O_I1_SB_LUT4_O_I1_SB_LUT4_O_2_I0_SB_LUT4_O_1_LC', no BELs remaining to implement cell type 'ICESTORM_LC'
+1 warning, 1 error
