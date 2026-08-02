@@ -1,171 +1,205 @@
-# Neural Network vs. DSP Audio Effects Comparison
+# Neural Network vs. DSP Audio Effects
 
-This project explores the capability of Neural Networks to emulate deterministic DSP audio effects and benchmarks them against traditional algorithms. The codebase currently supports two aligned tracks:
+This project compares deterministic digital signal processing (DSP) effects with neural-network models that learn to reproduce them. The main workflow is offline WAV-file processing: generate DSP targets, train a PyTorch model, run inference, and compare speed and signal error.
 
-* **Flanger**: CRNN-based modeling of the modulated delay effect.
-* **Distortion**: a quantized TCN trained against the improved tube-saturator baseline.
+The repository also contains deployment experiments for Bela and FPGA targets.
 
-## Project Status
+## Current status
 
-We have implemented a complete end-to-end pipeline for **Phase 1 (Non-Real-Time Benchmarking)**:
+| Area | Current state |
+| --- | --- |
+| DSP effects | Flanger, tube distortion, wah-wah, reverb, cabinet simulation, and aural exciter implementations are present in `python_code/src/dsp/`. |
+| Neural models | TCN, quantized TCN, CRNN, LSTM, and STFT U-Net architectures are implemented in `python_code/src/nn/`. |
+| Training | Configurable training loop with train/validation split, automatic checkpointing, L1 + derivative + multi-resolution STFT loss, and optional Brevitas quantization. |
+| Benchmarking | `python_code/tests/phase1_benchmark.py` measures DSP/NN processing time, real-time block behavior, MSE/ESR, waveforms, and spectrograms. |
+| Included checkpoints | Distortion and exciter checkpoints are present. A flanger CRNN checkpoint is not present in this checkout, so flanger NN benchmarking requires training or supplying a checkpoint. |
+| Real-time audio | Stateful DSP wrappers and Bela C++ renderers exist. A general-purpose live Python audio callback is not yet implemented. |
+| FPGA | Verilog TCN/convolution engines, testbenches, synthesis reports, and an iCE40-oriented `FPGA/Makefile` are included. |
 
-*   **DSP Baseline (Active)**: Flanger implementation with sinusoidal LFO modulation.
-	* Delay law: `delay(t) = center_delay * (1 + sin(2*pi*rate*t))`
-	* Sweep range: `0 .. 2*center_delay` ms.
-*   **Neural Networks**:
-	* **CRNN** is the active model for **flanger** emulation after the LSTM baseline failed to converge to the desired ESR target.
-	* **TCN** is the active model for **distortion**, now trained with a Brevitas-based quantized path for 16/8/4-bit deployment.
-*   **Dataset Generation**: `generate_targets.py` supports flanger target creation.
-*   **Training Loop**: Configurable model type (`lstm`/`tcn`/`crnn`) with checkpointing, L1 + MR-STFT loss, warm-up masking for each chunk, and a quantized TCN path for 16/8/4-bit training.
-*   **Inference Engine**: Unified wrappers for DSP and NN paths.
-*   **Benchmark/Testbench**: `tests/phase1_benchmark.py` measures speed (RTF), block latency, and signal error against DSP flanger reference.
+The project is therefore best described as an offline research/benchmarking pipeline with hardware-deployment prototypes, not yet as a finished real-time plugin or standalone pedal.
 
-## Quick Start
+## Repository layout
 
-### 1. Installation
+```text
+.
+├── README.md
+├── python_code/
+│   ├── pyproject.toml       # Python dependencies and project metadata
+│   ├── uv.lock              # Locked environment
+│   ├── generate_targets.py  # Create DSP target WAVs
+│   ├── inference.py         # Apply a trained model to a WAV file
+│   ├── export_*.py          # Deployment/export utilities
+│   ├── src/
+│   │   ├── dsp/             # Deterministic effects
+│   │   ├── nn/              # Architectures, dataset, training, quantization
+│   │   └── engine/          # DSP/NN wrappers
+│   ├── tests/               # Benchmarks and effect tests
+│   ├── data/                # Input, target, processed audio and plots
+│   └── models/              # Checkpoints and sweep results
+├── Bela/                    # Bela renderers, models, and benchmark results
+├── FPGA/                    # Verilog engines, testbenches, and reports
+├── cpp_code/                # C++ audio/benchmark artifacts
+├── raw_sound_files/         # Source WAV material used by examples/benchmarks
+└── instructions/            # Platform and effect-specific notes
+```
 
-This project uses `uv` for dependency management.
+Generated audio, plots, reports, and model files can be large. Check whether they should be stored in Git or in external artifact storage before adding new runs.
+
+## Python setup
+
+Python 3.12 or 3.13 is required by `python_code/pyproject.toml`. From the repository root:
 
 ```bash
 cd python_code
 uv sync
 ```
 
-All Python commands in this project are expected to run through `uv` (`uv sync`, `uv run ...`).
-
-### CUDA / GPU Usage (Optional but Recommended for Training)
-
-If a CUDA-capable GPU is available, training should run on GPU automatically when PyTorch in the active `uv` environment is CUDA-enabled.
-
-Quick checks:
+Run Python commands from `python_code`, because the scripts use paths relative to that directory:
 
 ```bash
-nvidia-smi
-uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+uv run python -c "import torch; print(torch.__version__); print('CUDA:', torch.cuda.is_available())"
 ```
 
-If `torch.cuda.is_available()` is `False`, your active environment likely has a CPU-only PyTorch build.
+The checked-in environment on the development machine currently runs PyTorch without CUDA. Training falls back to CPU (or MPS when available in the runtime). A CUDA-enabled PyTorch installation is recommended for training.
 
-### 2. Workflow
+## Generate DSP targets
 
-**Step A: Prepare Data**
-1.  Place your raw/clean audio files (wav) in `python_code/data/datasets/inputs/`.
-2.  Generate flanger target files:
+Put mono or stereo WAV files in `python_code/data/datasets/inputs/`. The generator reads WAV files directly in that directory; it does not recursively scan subdirectories. It preserves the input sample rate and writes mono targets.
+
+Flanger:
 
 ```bash
-uv run generate_targets.py \
-	--input_dir data/datasets/inputs \
-	--target_dir data/datasets/targets_flange \
-	--effect flanger \
-	--flanger_rate 0.2 \
-	--flanger_center_delay 3.0 \
-	--flanger_ff 0.70 \
-	--flanger_fb 0.12
+uv run python generate_targets.py \
+  --effect flanger \
+  --flanger_rate 0.2 \
+  --flanger_depth 2.0 \
+  --flanger_center_delay 3.0 \
+  --flanger_ff 0.70 \
+  --flanger_fb 0.12
 ```
 
-(This saves processed files to `python_code/data/datasets/targets_flange/` with matching filenames.)
-
-Generate distortion target files with the improved tube saturator:
+Tube distortion:
 
 ```bash
-uv run generate_targets.py \
-	--input_dir data/datasets/inputs \
-	--target_dir data/datasets/targets_distortion \
-	--effect tube \
-	--tube_drive 70.0 \
-	--tube_asymmetry 0.4 \
-	--tube_tone 5000
+uv run python generate_targets.py \
+  --effect tube \
+  --tube_drive 70.0 \
+  --tube_asymmetry 0.4 \
+  --tube_tone 5000
 ```
 
-(This saves processed files to `python_code/data/datasets/targets_distortion/` with matching filenames.)
+By default, targets are written to `data/datasets/targets_flange` for `flanger` and `data/datasets/targets_distortion` for `tube`. Other supported effects are `wah`, `reverb`, `cab`, and `exciter`; use `--target_dir` or `--help` to customize them.
 
-**Step B: Train the Model**
-Train the CRNN to mimic the DSP flanger effect:
-```bash
-uv run src/nn/train.py \
-	--model_type crnn \
-	--data_root data/datasets \
-	--input_subdir inputs \
-	--target_subdir targets_flange \
-	--chunk_size 88200 \
-	--epochs 100 \
-	--batch_size 16
-```
-The training loop uses an L1 + MR-STFT objective and ignores the first 10% of each chunk to let the recurrent state warm up. The final model will be saved to `python_code/models/checkpoints/crnn_final.pt`.
-When CUDA is available in the active environment, this command trains on GPU; otherwise it falls back to CPU.
+For cabinet simulation, provide a WAV impulse response with `--cab_ir_path`.
 
-Train the quantized TCN to mimic the distortion target set:
+## Train a model
+
+Training uses matching filenames from an input directory and a target directory. The command below trains a CRNN for flanger emulation:
 
 ```bash
-uv run src/nn/train.py \
-	--model_type tcn \
-	--quant_bits 16 \
-	--data_root data/datasets \
-	--input_subdir inputs \
-	--target_subdir targets_distortion \
-	--chunk_size 16384 \
-	--epochs 100 \
-	--batch_size 16
+uv run python src/nn/train.py \
+  --effect flange \
+  --model_type crnn \
+  --data_root data/datasets \
+  --input_subdir inputs \
+  --target_subdir targets_flange \
+  --chunk_size 88200 \
+  --epochs 100 \
+  --batch_size 16
 ```
 
-The TCN now uses a Brevitas-based quantized path for 16/8/4-bit training, with a dry residual anchor at the output to preserve polarity and level during retraining.
+The checkpoint is written to `models/checkpoints/crnn_final.pt`. If no effect is supplied, the effect is inferred from the target directory.
 
-**Step C: Run Inference**
-Apply the trained model to a new audio file:
+Train a floating-point distortion TCN:
 
 ```bash
-uv run inference.py --input_file "path/to/my_riff.wav"
+uv run python src/nn/train.py \
+  --effect distortion \
+  --model_type tcn \
+  --data_root data/datasets \
+  --input_subdir inputs \
+  --target_subdir targets_distortion \
+  --chunk_size 16384 \
+  --epochs 100 \
+  --batch_size 16
 ```
 
-Output will be saved to `python_code/data/processed/`.
-
-**Step D: Benchmark**
-Compare DSP flanger vs trained NN model for a selected effect mode:
+For Brevitas quantization-aware training, set `--quant_bits` to the desired width, such as `8` or `4`. The training script supports `tcn`, `lstm`, `crnn`, and `unet`; see all options with:
 
 ```bash
-uv run tests/phase1_benchmark.py --effect flange --input_file powerchords-mute.wav
+uv run python src/nn/train.py --help
 ```
 
-Effect-mode model mapping in `tests/phase1_benchmark.py`:
-- `--effect flange` -> activates `CRNN (Final)` and keeps TCN inactive.
-- `--effect distortion` -> activates the quantized `Causal TCN` checkpoint and keeps the flanger CRNN inactive.
+The loss selected by default is multi-resolution STFT plus waveform L1 and first-difference L1 terms. The dataset also supports a context window; use `--context_size` when the effect needs more history than the training chunk alone.
 
-If `--input_file` is omitted, the benchmark uses its built-in default files.
+## Run inference
 
-*TODO: add file size comparisons (several runs)*
-*TODO: add statistics (several runs)*
-*TODO: add different models (different size, optimized) to compare against eachother.*
-*TODO: add real-time inference implementation*
+`inference.py` expects the input filename to exist in `../raw_sound_files/` relative to `python_code` and writes output to `data/processed/`.
 
-## Quantization Notes
+```bash
+uv run python inference.py \
+  --input_file funk-soul-guitar-clean-4_90bpm_G.wav \
+  --model_path models/checkpoints/distortion_tcn_final.pt \
+  --model_type tcn
+```
 
-The distortion TCN uses Brevitas so the same architecture can be trained for 16-bit, 8-bit, and 4-bit deployment targets. The key training improvement is the dry residual anchor at the output, which helps preserve polarity, gain, and stable waveform centering during retraining.
+Use `--output_file` to choose the output filename. The wrapper can infer several TCN configurations from checkpoint keys, but the checkpoint and model type still need to match the intended architecture. Whole-file TCN inference is convenient for offline use; memory and latency should be measured before treating it as real-time capable.
 
-Recommended progression:
+## Run benchmarks
 
-1. Train 16-bit first and validate against DSP.
-2. Reuse the same architecture for 8-bit.
-3. Try 4-bit only after the 16-bit and 8-bit runs are stable.
+From `python_code`:
 
-## Comparisons
+```bash
+uv run python tests/phase1_benchmark.py \
+  --effect distortion \
+  --input_file funk-soul-guitar-clean-4_90bpm_G.wav \
+  --quant_bits 8
+```
 
-| Feature | Deterministic DSP (Flanger) | Neural Network (CRNN/TCN) |
-| :--- | :--- | :--- |
-| **Method** | Modulated fractional delay + feedback/feed-forward | Learned sequence mapping |
-| **Complexity** | Low-level DSP operations | Higher model-dependent compute |
-| **Sound** | Deterministic reference | Learned approximation of reference |
-| **Speed** | Fast reference baseline | Slower but benchmarked with RTF/latency |
+Supported benchmark modes are `flange`, `distortion`, `wah`, `reverb`, and `exciter`. The benchmark writes reports and visualizations to `data/processed/`. Useful options include:
 
-## File Structure
+```bash
+uv run python tests/phase1_benchmark.py --help
+uv run python tests/phase1_benchmark.py --effect distortion --compare_all
+uv run python tests/phase1_benchmark.py --model_path models/checkpoints/distortion_tcn_final.pt
+```
 
-*   `src/dsp/`: Reference DSP implementations.
-*   `src/nn/`: PyTorch model architecture and training logic.
-*   `src/engine/`: Wrappers for unified inference.
-*   `data/`: Storage for datasets and processed audio.
-*   `tests/`: Benchmarking scripts.
-*   `python_code/archive/`: Legacy one-off scripts moved out of active workflow (`main.py`, `fft_analyzer.py`).
+The default model selection expects effect-specific files such as `distortion_tcn_final.pt`, `distortion_tcn_q8_final.pt`, and `crnn_final.pt`. If a selected checkpoint is missing, the benchmark reports that model as unavailable; use `--model_path` to select an existing checkpoint explicitly.
 
----
+## FPGA and Bela
 
-### Previous Research Link
-https://docs.google.com/document/d/1PU49m20RlBC7QgCGgH99PVEWIrra0MUrChNkFV747vk/edit?tab=t.0
+The FPGA work is independent of the Python setup. Basic Verilog simulation and synthesis targets are defined in `FPGA/Makefile`:
+
+```bash
+cd FPGA
+make test-network
+make throughput-network
+make report
+```
+
+The default synthesis target is an iCE40 design and requires tools such as `iverilog`, `yosys`, and `nextpnr-ice40`. See [`instructions/FPGA.md`](instructions/FPGA.md) for the current hardware notes.
+
+The Bela implementation is under `Bela/code/`; platform setup and deployment notes are in [`instructions/Bela.md`](instructions/Bela.md). The repository also includes C++ benchmark artifacts under `cpp_code/`.
+
+## Known limitations
+
+- No top-level automated test command or CI workflow is currently defined.
+- The README and code do not yet provide a single reproducible benchmark table with hardware, sample rate, block size, and exact checkpoint provenance.
+- Some model files referenced by benchmark-selection code are not included in the current checkpoint directory.
+- The project contains generated artifacts and experimental sweep results alongside source code, which makes it harder to distinguish canonical outputs from exploratory runs.
+- Real-time audio I/O, plugin packaging, and end-to-end FPGA/Bela deployment are still separate prototypes rather than one integrated path.
+
+## Suggested next additions
+
+The most valuable next documentation and project additions would be:
+
+1. Add a small smoke-test command or CI job that checks imports, DSP effects, target generation, model loading, and the Verilog testbench.
+2. Add a checked-in benchmark report with the machine, OS, Python/PyTorch versions, sample rate, block size, model file, parameter count, latency, RTF, MSE, and ESR.
+3. Add a model manifest describing each checkpoint’s effect, architecture, training data, target parameters, quantization width, and intended input shape.
+4. Separate source, reproducible examples, and generated artifacts; document which large WAVs/checkpoints are required versus optional.
+5. Document audio conventions explicitly: mono conversion, sample-rate handling, normalization/clipping policy, state reset behavior, and whether each effect is causal.
+6. Add a real-time milestone with a fixed block-size API and a measured latency budget before pursuing plugin or standalone deployment.
+
+## Research notes
+
+Effect-specific technical notes are in the [`instructions/`](instructions/) directory. The original research document is available [here](https://docs.google.com/document/d/1PU49m20RlBC7QgCGgH99PVEWIrra0MUrChNkFV747vk/edit?tab=t.0).
